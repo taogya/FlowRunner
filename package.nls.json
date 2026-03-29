@@ -1,0 +1,13 @@
+{
+  "extension.description": "Node-based Workflow Execution VSCode Extension",
+  "view.flowList": "Flow List",
+  "command.createFlow": "Create Flow",
+  "command.openEditor": "Open Flow",
+  "command.deleteFlow": "Delete Flow",
+  "command.executeFlow": "Execute Flow",
+  "command.renameFlow": "Rename Flow",
+  "command.debugFlow": "Debug Flow",
+  "command.refreshFlowList": "Refresh Flow List",
+  "config.autoSave": "Auto-save flow definitions",
+  "config.historyMaxCount": "Maximum execution history count per flow"
+}

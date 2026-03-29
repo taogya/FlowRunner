@@ -1,0 +1,13 @@
+{
+  "extension.description": "ノードベースワークフロー実行 VSCode 拡張機能",
+  "view.flowList": "フロー一覧",
+  "command.createFlow": "フローを作成",
+  "command.openEditor": "フローを開く",
+  "command.deleteFlow": "フローを削除",
+  "command.executeFlow": "フローを実行",
+  "command.renameFlow": "フロー名を変更",
+  "command.debugFlow": "フローをデバッグ",
+  "command.refreshFlowList": "フロー一覧を更新",
+  "config.autoSave": "フロー定義の自動保存",
+  "config.historyMaxCount": "フローごとの実行履歴保持件数"
+}

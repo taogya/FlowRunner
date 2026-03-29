@@ -1,0 +1,11 @@
+{
+  "FlowRunner requires an open workspace folder.": "FlowRunner にはワークスペースフォルダを開く必要があります。",
+  "Enter flow name": "フロー名を入力してください",
+  "Enter new flow name": "新しいフロー名を入力してください",
+  "Debug feature is planned for future release": "デバッグ機能は将来対応予定です",
+  "Flow \"{0}\" completed successfully": "フロー \"{0}\" が正常に完了しました",
+  "Show History": "履歴を表示",
+  "Flow \"{0}\" failed with error: {1}": "フロー \"{0}\" がエラーで終了しました: {1}",
+  "Show Details": "詳細を表示",
+  "Flow \"{0}\" was cancelled": "フロー \"{0}\" がキャンセルされました"
+}

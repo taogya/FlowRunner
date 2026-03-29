@@ -1,0 +1,32 @@
+.git
+.gitignore
+.github
+.vscode-test
+.DS_Store
+
+# Source (compiled output in out/ is used instead)
+src/
+tsconfig.json
+vitest.config.mts
+vitest.setup.ts
+esbuild.config.mjs
+vite.config.ts
+eslint.config.mjs
+
+# Test build output
+out/test/
+
+# Build artifacts
+*.vsix
+coverage/
+*.map
+
+# User data
+.flowrunner/
+
+# Documentation (not needed in extension package)
+docs/
+tools/
+
+# Node modules (vsce bundles dependencies automatically)
+node_modules/

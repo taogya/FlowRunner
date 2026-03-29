@@ -1,0 +1,162 @@
+{
+  "name": "flowrunner",
+  "displayName": "FlowRunner",
+  "description": "%extension.description%",
+  "version": "0.1.0",
+  "publisher": "Taogya",
+  "license": "BSD-3-Clause",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/taogya/FlowRunner.git"
+  },
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onView:flowrunner.flowList",
+    "onCommand:flowrunner.createFlow",
+    "onCommand:flowrunner.openEditor"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "flowrunner",
+          "title": "FlowRunner",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "flowrunner": [
+        {
+          "id": "flowrunner.flowList",
+          "name": "%view.flowList%",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "flowrunner.createFlow",
+        "title": "%command.createFlow%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.openEditor",
+        "title": "%command.openEditor%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.deleteFlow",
+        "title": "%command.deleteFlow%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.executeFlow",
+        "title": "%command.executeFlow%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.renameFlow",
+        "title": "%command.renameFlow%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.debugFlow",
+        "title": "%command.debugFlow%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.refreshFlowList",
+        "title": "%command.refreshFlowList%",
+        "category": "FlowRunner",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "flowrunner.createFlow",
+          "when": "view == flowrunner.flowList"
+        },
+        {
+          "command": "flowrunner.refreshFlowList",
+          "when": "view == flowrunner.flowList",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "flowrunner.openEditor",
+          "when": "view == flowrunner.flowList"
+        },
+        {
+          "command": "flowrunner.deleteFlow",
+          "when": "view == flowrunner.flowList"
+        },
+        {
+          "command": "flowrunner.executeFlow",
+          "when": "view == flowrunner.flowList"
+        },
+        {
+          "command": "flowrunner.renameFlow",
+          "when": "view == flowrunner.flowList"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FlowRunner",
+      "properties": {
+        "flowrunner.autoSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.autoSave%"
+        },
+        "flowrunner.historyMaxCount": {
+          "type": "number",
+          "default": 10,
+          "description": "%config.historyMaxCount%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./ --noEmit && node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "typecheck": "tsc -p ./ --noEmit",
+    "build:webview": "vite build --config vite.config.ts",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "package": "npm run compile && npm run build:webview && vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/vscode": "^1.99.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "@vscode/vsce": "^2.20.0",
+    "esbuild": "^0.27.3",
+    "eslint": "^9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "glob": "^13.0.6",
+    "prettier": "^3.8.1",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.57.2",
+    "vite": "^8.0.2"
+  },
+  "dependencies": {
+    "@vscode/l10n": "^0.0.18",
+    "@xyflow/react": "^12.10.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  }
+}
