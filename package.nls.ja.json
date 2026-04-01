@@ -8,6 +8,17 @@
   "command.renameFlow": "フロー名を変更",
   "command.debugFlow": "フローをデバッグ",
   "command.refreshFlowList": "フロー一覧を更新",
+  "command.activateTrigger": "トリガーを有効化",
+  "command.deactivateTrigger": "トリガーを無効化",
+  "command.deactivateAllTriggers": "全トリガーを無効化",
   "config.autoSave": "フロー定義の自動保存",
-  "config.historyMaxCount": "フローごとの実行履歴保持件数"
+  "config.historyMaxCount": "フローごとの実行履歴保持件数",
+  "chatParticipant.description": "FlowRunner フローの実行・一覧・作成",
+  "chatParticipant.command.run": "フローを名前で実行",
+  "chatParticipant.command.list": "利用可能なフローを一覧表示",
+  "chatParticipant.command.create": "説明またはターミナル履歴から新規フローを作成",
+  "command.createFlowFromTemplate": "テンプレートからフローを作成",
+  "command.saveAsTemplate": "フローをテンプレートとして保存",
+  "command.exportFlow": "フローをエクスポート",
+  "command.importFlow": "フローをインポート"
 }

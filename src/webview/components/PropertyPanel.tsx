@@ -287,11 +287,7 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
         return [{ key: "", value: "" }];
       })();
       const updatePairs = (updated: KeyValuePair[]) => {
-        const obj: Record<string, string> = {};
-        for (const p of updated) {
-          if (p.key.trim()) obj[p.key] = p.value;
-        }
-        onChange(obj);
+        onChange(updated);
       };
       return (
         <div className="fr-field">
@@ -420,7 +416,10 @@ const JsonOutput: React.FC<{ outputs: Record<string, unknown> }> = ({ outputs })
 
 // Trace: DD-02-008003 — テキスト出力（file / log / 汎用）
 const TextOutput: React.FC<{ outputs: Record<string, unknown> }> = ({ outputs }) => {
-  const text = "out" in outputs ? String(outputs.out ?? "") : JSON.stringify(outputs, null, 2);
+  const raw = outputs.out;
+  const text = "out" in outputs
+    ? (typeof raw === "string" ? raw : JSON.stringify(raw ?? "", null, 2))
+    : JSON.stringify(outputs, null, 2);
   return (
     <div className="fr-output-result">
       <pre className="fr-output-pre">{text}</pre>

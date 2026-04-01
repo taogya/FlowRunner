@@ -9,12 +9,15 @@ import { FlowService } from "@extension/services/FlowService.js";
 import { HistoryService } from "@extension/services/HistoryService.js";
 import { ExecutionService } from "@extension/services/ExecutionService.js";
 import { DebugService } from "@extension/services/DebugService.js";
+import { TriggerService } from "@extension/services/TriggerService.js";
+import { ChatParticipantHandler } from "@extension/chat/ChatParticipantHandler.js";
 import { FlowTreeProvider } from "@extension/ui/FlowTreeProvider.js";
 import { MessageBroker } from "@extension/services/MessageBroker.js";
 import { FlowEditorManager } from "@extension/ui/FlowEditorManager.js";
 import { CommandRegistry } from "@extension/core/CommandRegistry.js";
 import { createNotificationHandler } from "@extension/services/notificationHandler.js";
 import type { IFlowTreeProvider } from "@extension/interfaces/IFlowTreeProvider.js";
+import type { TriggerConfig } from "@extension/interfaces/ITriggerService.js";
 
 // Trace: DD-01-002003
 export function activate(context: vscode.ExtensionContext): void {
@@ -30,6 +33,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const outputChannel = vscode.window.createOutputChannel("FlowRunner", { log: true });
   // vscode.workspace.fs returns Thenable; cast to satisfy local IFileSystem (Promise-based)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fileSystem: any = vscode.workspace.fs;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   const flowRepository = new FlowRepository(fileSystem, workspaceFolder.uri);
@@ -115,6 +119,104 @@ export function activate(context: vscode.ExtensionContext): void {
   flowFileWatcher.onDidChange(() => flowTreeProvider.refresh());
   flowFileWatcher.onDidDelete(() => flowTreeProvider.refresh());
 
+  // Phase 6.5: TriggerService — トリガーによるフロー自動実行 (Trace: FEAT-00001-003007)
+  const triggerService = new TriggerService(executionService, workspaceFolder);
+
+  // ステータスバーアイテム
+  const triggerStatusBar = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    50,
+  );
+  triggerStatusBar.command = "flowrunner.deactivateAllTriggers";
+  const updateTriggerStatusBar = () => {
+    const count = triggerService.getActiveTriggers().length;
+    if (count > 0) {
+      triggerStatusBar.text = `$(zap) ${count} trigger${count > 1 ? "s" : ""}`;
+      triggerStatusBar.tooltip = l10n.t("Click to deactivate all triggers");
+      triggerStatusBar.show();
+    } else {
+      triggerStatusBar.hide();
+    }
+  };
+
+  // トリガーコマンド登録 (Trace: FEAT-00001-003006)
+  const triggerActivateCmd = vscode.commands.registerCommand(
+    "flowrunner.activateTrigger",
+    async () => {
+      const activeFlowId = flowEditorManager.getActiveFlowId?.();
+      if (!activeFlowId) {
+        void vscode.window.showWarningMessage(
+          l10n.t("No flow is currently open."),
+        );
+        return;
+      }
+      const flow = await flowService.getFlow(activeFlowId);
+      if (!flow) { return; }
+      const triggerNode = flow.nodes.find((n) => n.type === "trigger");
+      if (!triggerNode) { return; }
+      const config: TriggerConfig = {
+        triggerType: (triggerNode.settings.triggerType as TriggerConfig["triggerType"]) ?? "manual",
+        filePattern: triggerNode.settings.filePattern as string | undefined,
+        debounceMs: triggerNode.settings.debounceMs as number | undefined,
+        intervalSeconds: triggerNode.settings.intervalSeconds as number | undefined,
+      };
+      if (config.triggerType === "manual") {
+        void vscode.window.showInformationMessage(
+          l10n.t("This flow uses manual trigger. No automatic trigger to activate."),
+        );
+        return;
+      }
+      triggerService.activateTrigger(activeFlowId, config);
+      updateTriggerStatusBar();
+      void vscode.window.showInformationMessage(
+        l10n.t("Trigger activated for this flow."),
+      );
+    },
+  );
+
+  const triggerDeactivateCmd = vscode.commands.registerCommand(
+    "flowrunner.deactivateTrigger",
+    () => {
+      const activeFlowId = flowEditorManager.getActiveFlowId?.();
+      if (!activeFlowId) {
+        void vscode.window.showWarningMessage(
+          l10n.t("No flow is currently open."),
+        );
+        return;
+      }
+      triggerService.deactivateTrigger(activeFlowId);
+      updateTriggerStatusBar();
+      void vscode.window.showInformationMessage(
+        l10n.t("Trigger deactivated for this flow."),
+      );
+    },
+  );
+
+  const triggerDeactivateAllCmd = vscode.commands.registerCommand(
+    "flowrunner.deactivateAllTriggers",
+    () => {
+      triggerService.deactivateAll();
+      updateTriggerStatusBar();
+      void vscode.window.showInformationMessage(
+        l10n.t("All triggers deactivated."),
+      );
+    },
+  );
+
+  // Phase 6.7: Chat Participant (@flowrunner) — Trace: FEAT-00003-003006
+  const chatHandler = new ChatParticipantHandler(flowService, executionService);
+  const chatParticipant = vscode.chat.createChatParticipant(
+    "flowrunner.flowrunner",
+    (request, chatContext, stream, token) =>
+      chatHandler.handle(request, chatContext, stream, token),
+  );
+  chatParticipant.iconPath = vscode.Uri.joinPath(context.extensionUri, "media", "icon.svg");
+  chatParticipant.followupProvider = {
+    provideFollowups(result) {
+      return chatHandler.provideFollowups(result);
+    },
+  };
+
   // Phase 7: Disposable registration
   context.subscriptions.push(
     outputChannel,
@@ -122,6 +224,12 @@ export function activate(context: vscode.ExtensionContext): void {
     flowEditorManager,
     notificationDisposable,
     flowFileWatcher,
+    triggerService,
+    triggerStatusBar,
+    triggerActivateCmd,
+    triggerDeactivateCmd,
+    triggerDeactivateAllCmd,
+    chatParticipant,
   );
 }
 

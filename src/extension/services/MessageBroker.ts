@@ -20,6 +20,24 @@ interface Disposable {
   dispose(): void;
 }
 
+// Trace: DD-01-005004 — payload type guards
+function requireString(payload: Record<string, unknown>, key: string): string {
+  const value = payload[key];
+  if (typeof value !== "string") {
+    throw new Error(`Missing or invalid payload field: ${key}`);
+  }
+  return value;
+}
+
+function optionalArray(payload: Record<string, unknown>, key: string): Array<Record<string, unknown>> {
+  const value = payload[key];
+  if (value == null) return [];
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid payload field (expected array): ${key}`);
+  }
+  return value as Array<Record<string, unknown>>;
+}
+
 export class MessageBroker {
   private readonly handlerMap: Map<string, MessageHandler>;
   private readonly eventDisposables: Disposable[] = [];
@@ -42,43 +60,48 @@ export class MessageBroker {
     // Trace: DD-01-005003
     this.handlerMap = new Map<string, MessageHandler>([
       ["flow:load", async (payload) => {
-        const flow = await this.flowService.getFlow(payload.flowId as string);
+        const flowId = requireString(payload, "flowId");
+        const flow = await this.flowService.getFlow(flowId);
         return { type: "flow:loaded", payload: { flow } };
       }],
       ["flow:save", async (payload) => {
         // Trace: DD-01-005003 — FlowNode→NodeInstance / FlowEdge→EdgeInstance 変換
-        const flow = await this.flowService.getFlow(payload.flowId as string);
-        const rawNodes = (payload.nodes ?? []) as Array<Record<string, unknown>>;
-        const rawEdges = (payload.edges ?? []) as Array<Record<string, unknown>>;
-        flow.nodes = rawNodes.map((n: Record<string, unknown>) => {
+        const flowId = requireString(payload, "flowId");
+        const flow = await this.flowService.getFlow(flowId);
+        const rawNodes = optionalArray(payload, "nodes");
+        const rawEdges = optionalArray(payload, "edges");
+        flow.nodes = rawNodes.map((n) => {
           const data = (n.data ?? {}) as Record<string, unknown>;
           return {
-            id: n.id as string,
-            type: n.type as string,
-            label: (data.label as string) ?? (n.type as string),
+            id: String(n.id),
+            type: String(n.type),
+            label: (data.label as string) ?? String(n.type),
             enabled: (data.enabled as boolean) ?? true,
             position: n.position as { x: number; y: number },
             settings: (data.settings as Record<string, unknown>) ?? {},
           };
         });
-        flow.edges = rawEdges.map((e: Record<string, unknown>) => ({
-          id: e.id as string,
-          sourceNodeId: (e.sourceNodeId ?? e.source) as string,
-          sourcePortId: (e.sourcePortId ?? e.sourceHandle ?? "out") as string,
-          targetNodeId: (e.targetNodeId ?? e.target) as string,
-          targetPortId: (e.targetPortId ?? e.targetHandle ?? "in") as string,
+        flow.edges = rawEdges.map((e) => ({
+          id: String(e.id),
+          sourceNodeId: String(e.sourceNodeId ?? e.source),
+          sourcePortId: String((e.sourcePortId ?? e.sourceHandle ?? "out") as string),
+          targetNodeId: String(e.targetNodeId ?? e.target),
+          targetPortId: String((e.targetPortId ?? e.targetHandle ?? "in") as string),
         }));
         await this.flowService.saveFlow(flow);
         return { type: "flow:saved", payload: {} };
       }],
       ["flow:execute", async (payload) => {
-        await this.executionService.executeFlow(payload.flowId as string);
+        const flowId = requireString(payload, "flowId");
+        await this.executionService.executeFlow(flowId);
       }],
       ["flow:stop", async (payload) => {
-        this.executionService.stopFlow(payload.flowId as string);
+        const flowId = requireString(payload, "flowId");
+        this.executionService.stopFlow(flowId);
       }],
       ["debug:start", async (payload) => {
-        await this.debugService.startDebug(payload.flowId as string);
+        const flowId = requireString(payload, "flowId");
+        await this.debugService.startDebug(flowId);
       }],
       ["debug:step", async () => {
         await this.debugService.step();
@@ -90,16 +113,28 @@ export class MessageBroker {
         const executors = this.nodeExecutorRegistry.getAll();
         const metadata = await Promise.all(
           executors.map(async (e) => {
-            // Trace: BD-03-006003 - dynamically fetch model list for AIPromptExecutor
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            if ("getMetadataAsync" in e && typeof (e as any).getMetadataAsync === "function") {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-              return (e as any).getMetadataAsync();
+            // Trace: BD-03-006003, DD-03-002003 — use optional interface method
+            if (e.getMetadataAsync) {
+              return e.getMetadataAsync();
             }
             return e.getMetadata();
           }),
         );
         return { type: "node:typesLoaded", payload: { nodeTypes: metadata } };
+      }],
+      // Trace: REV-016 #12 — dynamic metadata for a specific node type with current settings
+      ["node:getMetadata", async (payload) => {
+        const nodeType = payload.nodeType as string;
+        const currentSettings = (payload.settings ?? {}) as Record<string, unknown>;
+        const executor = this.nodeExecutorRegistry.getAll().find(e => e.getMetadata().nodeType === nodeType);
+        if (!executor) return;
+        let meta;
+        if (executor.getMetadataAsync) {
+          meta = await executor.getMetadataAsync(currentSettings);
+        } else {
+          meta = executor.getMetadata();
+        }
+        return { type: "node:metadataLoaded", payload: { nodeType, metadata: meta } };
       }],
     ]);
   }

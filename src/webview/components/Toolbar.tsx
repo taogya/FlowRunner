@@ -16,6 +16,7 @@ interface ToolbarProps {
   onToggleLeftPanel?: () => void;
   rightPanelOpen?: boolean;
   onToggleRightPanel?: () => void;
+  onAutoLayout?: () => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -33,6 +34,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onToggleLeftPanel,
   rightPanelOpen,
   onToggleRightPanel,
+  onAutoLayout,
 }) => {
   return (
     <div data-testid="toolbar" className="fr-toolbar">
@@ -90,6 +92,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           title="プロパティ"
         >
           ⚙
+        </button>
+      )}
+      {onAutoLayout && (
+        <button
+          className="fr-toolbar-btn"
+          onClick={onAutoLayout}
+          aria-label="Auto Layout"
+          title="自動整列"
+        >
+          ⇶
         </button>
       )}
       <span className="fr-toolbar-status">

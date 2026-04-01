@@ -63,7 +63,7 @@ export class FlowEditorManager implements IFlowEditorManager {
     panel.webview.onDidReceiveMessage((message: unknown) => {
       const msg = message as { type?: string; payload?: Record<string, unknown> };
       const enrichedPayload = { ...msg.payload, flowId };
-      broker.handleMessage({ type: msg.type, payload: enrichedPayload } as any, panel);
+      broker.handleMessage({ type: msg.type, payload: enrichedPayload }, panel);
     });
 
     panel.onDidDispose(() => {
@@ -83,16 +83,14 @@ export class FlowEditorManager implements IFlowEditorManager {
       }
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    this.panels.set(flowId, { panel, broker: broker as any });
+    this.panels.set(flowId, { panel, broker });
     this.activeFlowId = flowId;
   }
 
   closeEditor(flowId: string): void {
     const entry = this.panels.get(flowId);
     if (entry) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      (entry.broker as any)?.dispose?.();
+      entry.broker.dispose();
       entry.panel.dispose();
       this.panels.delete(flowId);
     }
@@ -113,7 +111,7 @@ export class FlowEditorManager implements IFlowEditorManager {
     const cssUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, "dist", "webview.css"),
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
     const cspSource = (panel.webview as any).cspSource ?? "";
     const nonce = crypto.randomBytes(16).toString("base64");
 
@@ -136,8 +134,7 @@ export class FlowEditorManager implements IFlowEditorManager {
   // Trace: DD-02-003005
   dispose(): void {
     for (const { panel, broker } of this.panels.values()) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      (broker as any)?.dispose?.();
+      broker.dispose();
       panel.dispose();
     }
     this.panels.clear();

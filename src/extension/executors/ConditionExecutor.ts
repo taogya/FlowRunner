@@ -7,6 +7,7 @@ import type {
 import type { NodeSettings } from "@shared/types/flow.js";
 import type { INodeTypeMetadata } from "@shared/types/node.js";
 import type { ValidationResult } from "@shared/types/execution.js";
+import { safeEval } from "./safeEval.js";
 
 // Trace: BD-03-006004
 export class ConditionExecutor implements INodeExecutor {
@@ -22,7 +23,7 @@ export class ConditionExecutor implements INodeExecutor {
       { id: "false", label: "False", dataType: "any" },
     ],
     settingsSchema: [
-      { key: "expression", label: "条件式", type: "text", required: true },
+      { key: "expression", label: "条件式", type: "text", required: true, placeholder: "input.length > 0", description: "jexl式。input, vars.xxx が使用可能" },
     ],
   };
 
@@ -42,10 +43,9 @@ export class ConditionExecutor implements INodeExecutor {
       return { status: "cancelled", outputs: {}, duration: 0 };
     }
     try {
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval
-      const fn = new Function("input", `return ${String(context.settings.expression)}`);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-      const result = fn(context.inputs.in);
+      // Trace: DD-03-007001 — safe expression evaluation via jexl
+      // Trace: FEAT-00002 — pass shared variables for vars.xxx access in expressions
+      const result = await safeEval(String(context.settings.expression), context.inputs.in, context.variables);
       const branch = result ? "true" : "false";
       return {
         status: "success",

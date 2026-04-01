@@ -24,7 +24,7 @@ export class FileExecutor implements INodeExecutor {
     outputPorts: [{ id: "out", label: "出力", dataType: "any" }],
     settingsSchema: [
       { key: "operation", label: "操作種別", type: "select", required: true, defaultValue: "read", options: [{ value: "read", label: "read" }, { value: "write", label: "write" }, { value: "append", label: "append" }, { value: "delete", label: "delete" }, { value: "exists", label: "exists" }, { value: "listDir", label: "listDir" }] },
-      { key: "path", label: "ファイルパス", type: "string", required: true },
+      { key: "path", label: "ファイルパス", type: "string", required: true, placeholder: "{{input.path}}", description: "テンプレート {{input}}, {{vars.xxx}} が使用可能" },
       { key: "encoding", label: "エンコーディング", type: "select", required: false, defaultValue: "utf-8", options: [{ value: "utf-8", label: "utf-8" }, { value: "ascii", label: "ascii" }, { value: "base64", label: "base64" }] },
     ],
   };
@@ -76,7 +76,7 @@ export class FileExecutor implements INodeExecutor {
 
     const startMs = Date.now();
     try {
-      const rawPath = expandTemplate(context.settings.path as string, context.inputs.in);
+      const rawPath = expandTemplate(context.settings.path as string, context.inputs.in, context.variables);
       // REV-013 #6: expandTemplate 後のパスに対してトラバーサル再検証
       const absPath = this.validatePath(rawPath);
       const encoding = (context.settings.encoding as BufferEncoding) ?? "utf-8";

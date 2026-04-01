@@ -34,7 +34,7 @@ export class CommandExecutor implements INodeExecutor {
       { id: "stderr", label: "標準エラー", dataType: "string" },
     ],
     settingsSchema: [
-      { key: "command", label: "コマンド", type: "text", required: true },
+      { key: "command", label: "コマンド", type: "text", required: true, placeholder: "echo {{input}}", description: "テンプレート {{input}}, {{input.xxx}}, {{vars.xxx}} が使用可能" },
       { key: "cwd", label: "作業ディレクトリ", type: "string", required: false, defaultValue: "" },
       { key: "shell", label: "シェル", type: "select", required: false, defaultValue: "default", options: [{ value: "default", label: "default" }, { value: "bash", label: "bash" }, { value: "zsh", label: "zsh" }, { value: "sh", label: "sh" }, { value: "cmd", label: "cmd" }, { value: "pwsh", label: "pwsh" }] },
       { key: "env", label: "環境変数", type: "keyValue", required: false },
@@ -69,7 +69,10 @@ export class CommandExecutor implements INodeExecutor {
     const shell: string | boolean = (!shellSetting || shellSetting === "default") ? true : shellSetting;
 
     // Trace: DD-03-005002 - env: merge process.env + user env + FLOW_INPUT
-    const userEnv = (context.settings.env as Record<string, string>) ?? {};
+    const rawEnv = context.settings.env;
+    const userEnv: Record<string, string> = Array.isArray(rawEnv)
+      ? (rawEnv as Array<{ key: string; value: string }>).reduce((acc, p) => { if (p.key?.trim()) acc[p.key] = p.value; return acc; }, {} as Record<string, string>)
+      : (rawEnv as Record<string, string>) ?? {};
     const env = {
       ...process.env,
       ...userEnv,
@@ -79,7 +82,7 @@ export class CommandExecutor implements INodeExecutor {
     // Trace: DD-03-005002 - timeout handling
     const timeoutSec = Number(context.settings.timeout) || 0;
     const rawCommand = context.settings.command as string;
-    const command = expandTemplate(rawCommand, context.inputs.in);
+    const command = expandTemplate(rawCommand, context.inputs.in, context.variables);
     const oc = this.outputChannel;
 
     return new Promise<IExecutionResult>((resolve) => {

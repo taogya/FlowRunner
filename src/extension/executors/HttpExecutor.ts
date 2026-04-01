@@ -52,10 +52,10 @@ export class HttpExecutor implements INodeExecutor {
       { id: "status", label: "ステータスコード", dataType: "number" },
     ],
     settingsSchema: [
-      { key: "url", label: "URL", type: "string", required: true },
+      { key: "url", label: "URL", type: "string", required: true, placeholder: "https://api.example.com/{{input.id}}", description: "テンプレート {{input}}, {{vars.xxx}} が使用可能" },
       { key: "method", label: "メソッド", type: "select", required: false, defaultValue: "GET", options: [{ value: "GET", label: "GET" }, { value: "POST", label: "POST" }, { value: "PUT", label: "PUT" }, { value: "DELETE", label: "DELETE" }, { value: "PATCH", label: "PATCH" }] },
       { key: "headers", label: "ヘッダー", type: "keyValue", required: false },
-      { key: "body", label: "ボディ", type: "text", required: false },
+      { key: "body", label: "ボディ", type: "text", required: false, description: "テンプレート {{input}}, {{vars.xxx}} が使用可能" },
       { key: "auth", label: "認証", type: "select", required: false, defaultValue: "none", options: [{ value: "none", label: "none" }, { value: "bearer", label: "bearer" }] },
       { key: "authToken", label: "トークン", type: "string", required: false },
       { key: "timeout", label: "タイムアウト（秒）", type: "number", required: false, defaultValue: 30 },
@@ -82,9 +82,9 @@ export class HttpExecutor implements INodeExecutor {
     const startMs = Date.now();
     try {
       // Trace: DD-03-008002 — template expansion for URL and body
-      const url = expandTemplate(context.settings.url as string, context.inputs.in);
+      const url = expandTemplate(context.settings.url as string, context.inputs.in, context.variables);
       const bodyTemplate = context.settings.body as string | undefined;
-      const requestBody = bodyTemplate ? expandTemplate(bodyTemplate, context.inputs.in) : undefined;
+      const requestBody = bodyTemplate ? expandTemplate(bodyTemplate, context.inputs.in, context.variables) : undefined;
 
       // Trace: DD-03-008002 — private network check (warn only, don't block)
       try {

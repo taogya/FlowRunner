@@ -65,7 +65,8 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
   const showTooltip = useCallback((e: React.MouseEvent, port: PortDefinition, isOutput: boolean) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const lines = [`${port.label} (${port.id})`, `型: ${port.dataType}`];
-    if (isOutput) lines.push("接続先で {{input}} として参照");
+    // Trace: REV-016 #7 — neutral tooltip without syntax-specific hint
+    if (isOutput) lines.push("接続先ノードの入力データ (input) になります");
     setTooltip({ text: lines.join("\n"), x: rect.right + 8, y: rect.top });
   }, []);
   const hideTooltip = useCallback(() => setTooltip(null), []);
@@ -175,6 +176,7 @@ interface FlowCanvasProps {
   onPasteNode?: (clipboard: ClipboardNode, position: { x: number; y: number }) => void;
   onSelectAll?: () => void;
   onOpenSettings?: (nodeId: string) => void;
+  onAutoLayout?: () => void;
   showMiniMap?: boolean;
 }
 
@@ -203,6 +205,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   onPasteNode,
   onSelectAll,
   onOpenSettings,
+  onAutoLayout,
   showMiniMap = false,
 }) => {
   // Track highlighted edge ID via direct edge click for immediate update
@@ -357,6 +360,11 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
     closeContextMenu();
   }, [reactFlowInstance, closeContextMenu]);
 
+  const handleAutoLayout = useCallback(() => {
+    onAutoLayout?.();
+    closeContextMenu();
+  }, [onAutoLayout, closeContextMenu]);
+
   // Ghost placement mode: event listeners
   useEffect(() => {
     if (!ghostClipboard) return;
@@ -434,11 +442,15 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         nodes={nodes}
         edges={styledEdges}
         nodeTypes={nodeTypes}
-        defaultEdgeOptions={{ type: "smoothstep" }}
+        defaultEdgeOptions={{ type: "bezier" }}
         minZoom={0.1}
         maxZoom={2.0}
         fitView={true}
         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        selectionOnDrag={true}
+        selectionKeyCode={null}
+        multiSelectionKeyCode="Shift"
+        deleteKeyCode={null}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -479,6 +491,10 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
               <div role="menuitem" className="fr-context-menu-item" onClick={handleSelectAll}>
                 Select All
               </div>
+              <div className="fr-context-menu-separator" />
+              <div role="menuitem" className="fr-context-menu-item" onClick={handleAutoLayout}>
+                Auto Layout
+              </div>
             </>
           )}
           {contextMenu.targetType === "edge" && (
@@ -488,6 +504,10 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
               </div>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleSelectAll}>
                 Select All
+              </div>
+              <div className="fr-context-menu-separator" />
+              <div role="menuitem" className="fr-context-menu-item" onClick={handleAutoLayout}>
+                Auto Layout
               </div>
             </>
           )}
@@ -506,6 +526,10 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
               <div className="fr-context-menu-separator" />
               <div role="menuitem" className="fr-context-menu-item" onClick={handleZoomReset}>
                 Zoom Reset
+              </div>
+              <div className="fr-context-menu-separator" />
+              <div role="menuitem" className="fr-context-menu-item" onClick={handleAutoLayout}>
+                Auto Layout
               </div>
             </>
           )}

@@ -8,6 +8,7 @@ import type { NodeSettings } from "@shared/types/flow.js";
 import type { INodeTypeMetadata } from "@shared/types/node.js";
 import type { ValidationResult } from "@shared/types/execution.js";
 import { expandTemplate } from "./expandTemplate.js";
+import { safeEval } from "./safeEval.js";
 
 // Trace: BD-03-006009
 export class TransformExecutor implements INodeExecutor {
@@ -20,8 +21,10 @@ export class TransformExecutor implements INodeExecutor {
     inputPorts: [{ id: "in", label: "入力", dataType: "any" }],
     outputPorts: [{ id: "out", label: "出力", dataType: "any" }],
     settingsSchema: [
-      { key: "transformType", label: "変換種別", type: "select", required: true, defaultValue: "jsonParse", options: [{ value: "jsonParse", label: "jsonParse" }, { value: "jsonStringify", label: "jsonStringify" }, { value: "textReplace", label: "textReplace" }, { value: "textSplit", label: "textSplit" }, { value: "textJoin", label: "textJoin" }, { value: "regex", label: "regex" }, { value: "template", label: "template" }, { value: "jsExpression", label: "jsExpression" }] },
-      { key: "expression", label: "式/パラメータ", type: "text", required: false },
+      { key: "transformType", label: "変換種別", type: "select", required: true, defaultValue: "jsonParse", options: [{ value: "jsonParse", label: "jsonParse" }, { value: "jsonStringify", label: "jsonStringify" }, { value: "textReplace", label: "textReplace" }, { value: "textSplit", label: "textSplit" }, { value: "textJoin", label: "textJoin" }, { value: "regex", label: "regex" }, { value: "template", label: "template" }, { value: "jsExpression", label: "jsExpression" }, { value: "setVar", label: "setVar" }, { value: "getVar", label: "getVar" }] },
+      { key: "expression", label: "式/パラメータ", type: "text", required: false, description: "template: {{input}}, {{vars.xxx}} / jsExpression: jexl式 (input, vars.xxx)" },
+      { key: "varName", label: "変数名", type: "text", required: false },
+      { key: "defaultValue", label: "デフォルト値", type: "text", required: false },
     ],
   };
 
@@ -36,6 +39,10 @@ export class TransformExecutor implements INodeExecutor {
     }
     if (settings.transformType === "jsExpression" && !settings.expression) {
       return { valid: false, errors: [{ field: "expression", message: "expression is required for jsExpression" }] };
+    }
+    // Trace: FEAT-00002-003005
+    if ((settings.transformType === "setVar" || settings.transformType === "getVar") && !settings.varName) {
+      return { valid: false, errors: [{ field: "varName", message: "varName is required for setVar/getVar" }] };
     }
     return { valid: true };
   }
@@ -76,13 +83,25 @@ export class TransformExecutor implements INodeExecutor {
           result = String(input).match(new RegExp(expression));
           break;
         case "template":
-          result = expandTemplate(expression, input);
+          result = expandTemplate(expression, input, context.variables);
           break;
         case "jsExpression": {
-          // eslint-disable-next-line @typescript-eslint/no-implied-eval
-          const fn = new Function("input", `return ${expression}`);
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-          result = fn(input);
+          // Trace: DD-03-008003 — safe expression evaluation via jexl
+          // Trace: FEAT-00002 — pass shared variables for vars.xxx access
+          result = await safeEval(expression, input, context.variables);
+          break;
+        }
+        // Trace: FEAT-00002-003005
+        case "setVar": {
+          const varName = context.settings.varName as string;
+          context.variables?.set(varName, input);
+          result = input;
+          break;
+        }
+        case "getVar": {
+          const varName = context.settings.varName as string;
+          const defaultValue = context.settings.defaultValue;
+          result = context.variables?.get(varName) ?? defaultValue;
           break;
         }
         default:

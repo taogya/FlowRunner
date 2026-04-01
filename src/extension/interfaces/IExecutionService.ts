@@ -17,7 +17,7 @@ export interface Disposable {
 // Trace: BD-04-002002
 export interface IExecutionService {
   /** フローを実行する（サブフロー呼び出し時は最終ノード出力を返す） */
-  executeFlow(flowId: string, options?: { depth?: number }): Promise<PortDataMap | undefined>;
+  executeFlow(flowId: string, options?: { depth?: number; triggerData?: Record<string, unknown>; outputNodeId?: string }): Promise<PortDataMap | undefined>;
 
   /** 実行中のフローを停止する */
   stopFlow(flowId: string): void;

@@ -24,7 +24,7 @@ export class AIPromptExecutor implements INodeExecutor {
       { id: "_tokenUsage", label: "トークン使用量", dataType: "object" },
     ],
     settingsSchema: [
-      { key: "prompt", label: "プロンプト", type: "text", required: true },
+      { key: "prompt", label: "プロンプト", type: "text", required: true, placeholder: "入力: {{input}}", description: "テンプレート {{input}}, {{input.xxx}}, {{vars.xxx}} が使用可能。未使用時はinputを自動付与" },
       {
         key: "model",
         label: "モデル",
@@ -93,7 +93,7 @@ export class AIPromptExecutor implements INodeExecutor {
       // Trace: DD-03-006001 step 1 - expand prompt template
       const rawPrompt = context.settings.prompt as string;
       const inputData = context.inputs.in;
-      let prompt = expandTemplate(rawPrompt, inputData);
+      let prompt = expandTemplate(rawPrompt, inputData, context.variables);
       // Auto-append input if template has no {{input}} placeholders and input exists
       if (!rawPrompt.includes("{{input") && inputData != null && inputData !== "") {
         const inputStr = typeof inputData === "string" ? inputData : JSON.stringify(inputData, null, 2);

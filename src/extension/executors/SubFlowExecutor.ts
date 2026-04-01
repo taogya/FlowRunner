@@ -31,6 +31,7 @@ export class SubFlowExecutor implements INodeExecutor {
     outputPorts: [{ id: "out", label: "出力", dataType: "any" }],
     settingsSchema: [
       { key: "flowId", label: "フロー", type: "select", required: true },
+      { key: "outputNodeId", label: "出力ノード", type: "select", required: false, description: "サブフローの出力に使用するノード（未選択時は最終ノード）" },
     ],
   };
 
@@ -38,18 +39,42 @@ export class SubFlowExecutor implements INodeExecutor {
     return this.metadata;
   }
 
-  // Trace: BD-03-006011 — dynamically populate flowId options from repository
-  async getMetadataAsync(): Promise<INodeTypeMetadata> {
+  // Trace: BD-03-006011, REV-016 #12 — dynamically populate flowId and outputNodeId options
+  async getMetadataAsync(currentSettings?: NodeSettings): Promise<INodeTypeMetadata> {
     const flows = await this.flowRepository.list();
+    const flowIdSetting = {
+      key: "flowId",
+      label: "フロー",
+      type: "select" as const,
+      required: true,
+      options: flows.map((f) => ({ value: f.id, label: f.name })),
+    };
+
+    // Build outputNodeId options from terminal nodes of the selected flow
+    let outputNodeOptions: Array<{ value: string; label: string }> = [];
+    const selectedFlowId = currentSettings?.flowId as string | undefined;
+    if (selectedFlowId) {
+      try {
+        const flow = await this.flowRepository.load(selectedFlowId);
+        const sourceNodeIds = new Set(flow.edges.map(e => e.sourceNodeId));
+        const terminalNodes = flow.nodes.filter(n => !sourceNodeIds.has(n.id));
+        outputNodeOptions = terminalNodes.map(n => ({ value: n.id, label: n.label || n.type }));
+      } catch {
+        // Flow not found or load error — leave options empty
+      }
+    }
+
     return {
       ...this.metadata,
       settingsSchema: [
+        flowIdSetting,
         {
-          key: "flowId",
-          label: "フロー",
+          key: "outputNodeId",
+          label: "出力ノード",
           type: "select",
-          required: true,
-          options: flows.map((f) => ({ value: f.id, label: f.name })),
+          required: false,
+          description: "サブフローの出力に使用するノード（未選択時は最終ノード）",
+          options: outputNodeOptions,
         },
       ],
     };
@@ -99,10 +124,14 @@ export class SubFlowExecutor implements INodeExecutor {
     }
 
     const currentDepth = context.depth ?? 0;
+    const outputNodeId = context.settings.outputNodeId as string | undefined;
     const startMs = Date.now();
     try {
-      // Trace: DD-04-002009 — sub-flow execution with depth tracking
-      const subFlowOutput = await this.executionService.executeFlow(subFlowId, { depth: currentDepth + 1 });
+      // Trace: DD-04-002009, REV-016 #12 — sub-flow execution with depth tracking and output node selection
+      const subFlowOutput = await this.executionService.executeFlow(subFlowId, {
+        depth: currentDepth + 1,
+        outputNodeId: outputNodeId || undefined,
+      });
 
       return {
         status: "success",

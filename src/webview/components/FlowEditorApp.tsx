@@ -1,13 +1,16 @@
 // Trace: DD-02-004001, DD-02-004002, DD-02-004003
 import React, { useEffect, useReducer, useState, useCallback, useMemo } from "react";
 import { ReactFlowProvider, applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
-import type { NodeChange, EdgeChange, Connection } from "@xyflow/react";
+import type { NodeChange, EdgeChange, Connection, Node, Edge } from "@xyflow/react";
 import { messageClient } from "../services/MessageClient.js";
 import { FlowCanvas } from "./FlowCanvas.js";
 import { Toolbar } from "./Toolbar.js";
 import { PropertyPanel } from "./PropertyPanel.js";
 import { NodePalette } from "./NodePalette.js";
 import { useUndoRedo } from "../hooks/useUndoRedo.js";
+import { DagreLayoutEngine } from "../services/DagreLayoutEngine.js";
+import { getSelectedNodes, getInternalEdges, createRemappedNodes, remapEdges } from "../services/clipboardHelpers.js";
+import { filterExistingEdgesForSameTarget } from "../services/connectionHelpers.js";
 import type { INodeTypeMetadata } from "@shared/types/node.js";
 import type { NodeResult } from "@shared/types/execution.js";
 import type { NodeSettings } from "@shared/types/flow.js";
@@ -103,6 +106,9 @@ export const FlowEditorApp: React.FC = () => {
   const [showMiniMap, setShowMiniMap] = useState(false);
   const { pushState, undo, redo } = useUndoRedo();
 
+  // Trace: REV-016 #10 — clipboard for multi-node copy/paste
+  const [clipboard, setClipboard] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] } | null>(null);
+
   // Trace: DD-02-004002 — 派生ステート
   const isRunning = useMemo(
     () => Array.from(state.executionState.values()).some(s => s === "running"),
@@ -131,6 +137,16 @@ export const FlowEditorApp: React.FC = () => {
     return nodeTypesList.find(m => m.nodeType === selectedNode.type) ?? null;
   }, [selectedNode, nodeTypesList]);
 
+  // Trace: REV-016 #12 — dynamic metadata for nodes with settings-dependent options (e.g. SubFlow)
+  const [dynamicMetadata, setDynamicMetadata] = useState<INodeTypeMetadata | null>(null);
+
+  const effectiveNodeMetadata = useMemo(() => {
+    if (dynamicMetadata && selectedNode && dynamicMetadata.nodeType === selectedNode.type) {
+      return dynamicMetadata;
+    }
+    return selectedNodeMetadata;
+  }, [dynamicMetadata, selectedNode, selectedNodeMetadata]);
+
   const selectedNodeOutput = useMemo(() => {
     if (!state.selectedNodeId) return null;
     return executionResults.get(state.selectedNodeId) ?? null;
@@ -143,6 +159,22 @@ export const FlowEditorApp: React.FC = () => {
       category: m.category,
     }));
   }, [nodeTypesList]);
+
+  // Trace: REV-016 #12 — request dynamic metadata when selecting a node with getMetadataAsync support
+  useEffect(() => {
+    if (!selectedNode) {
+      setDynamicMetadata(null);
+      return;
+    }
+    // Only request dynamic metadata for node types that need it (e.g. subFlow)
+    const needsDynamic = selectedNode.type === "subFlow" || selectedNode.type === "aiPrompt";
+    if (!needsDynamic) {
+      setDynamicMetadata(null);
+      return;
+    }
+    const settings = (selectedNode.data.settings as Record<string, unknown>) ?? {};
+    messageClient.send("node:getMetadata", { nodeType: selectedNode.type, settings });
+  }, [selectedNode]);
 
   // Trace: DD-02-004003 — mount 時に flow:load / node:getTypes メッセージ送信
   useEffect(() => {
@@ -158,15 +190,15 @@ export const FlowEditorApp: React.FC = () => {
           case "flow:loaded": {
             // Trace: DD-02-004003 — NodeInstance/EdgeInstance → FlowNode/FlowEdge 変換
             const flow = msg.payload.flow as Record<string, unknown> | undefined;
-            const rawNodes = ((flow?.nodes ?? msg.payload.nodes) ?? []) as any[];
-            const rawEdges = ((flow?.edges ?? msg.payload.edges) ?? []) as any[];
-            const nodes: FlowNode[] = rawNodes.map((n: any) => ({
+            const rawNodes = ((flow?.nodes ?? msg.payload.nodes) ?? []) as Record<string, unknown>[];
+            const rawEdges = ((flow?.edges ?? msg.payload.edges) ?? []) as Record<string, unknown>[];
+            const nodes: FlowNode[] = rawNodes.map((n: Record<string, unknown>) => ({
               id: n.id,
               type: n.type,
               position: n.position,
               data: n.data ?? { label: n.label, enabled: n.enabled, settings: n.settings },
             }));
-            const edges: FlowEdge[] = rawEdges.map((e: any) => ({
+            const edges: FlowEdge[] = rawEdges.map((e: Record<string, unknown>) => ({
               id: e.id,
               source: e.source ?? e.sourceNodeId,
               target: e.target ?? e.targetNodeId,
@@ -203,6 +235,13 @@ export const FlowEditorApp: React.FC = () => {
               nodeId: msg.payload.nodeId as string,
               state: "error",
             });
+            if (msg.payload.result) {
+              setExecutionResults(prev => {
+                const next = new Map(prev);
+                next.set(msg.payload.nodeId as string, msg.payload.result as NodeResult);
+                return next;
+              });
+            }
             break;
           case "execution:flowCompleted":
             break;
@@ -230,6 +269,10 @@ export const FlowEditorApp: React.FC = () => {
           case "node:typesLoaded":
             setNodeTypesList((msg.payload.nodeTypes as INodeTypeMetadata[]) ?? []);
             break;
+          // Trace: REV-016 #12 — dynamic metadata response
+          case "node:metadataLoaded":
+            setDynamicMetadata(msg.payload.metadata as INodeTypeMetadata);
+            break;
         }
       },
     );
@@ -238,8 +281,13 @@ export const FlowEditorApp: React.FC = () => {
 
   // Trace: BD-02-004003 — Toolbar callbacks
   const handleExecute = useCallback(() => {
+    // Save before execute to ensure the latest flow is used
+    if (state.isDirty) {
+      messageClient.send("flow:save", { nodes: state.nodes, edges: state.edges });
+      dispatch({ type: "FLOW_SAVED" });
+    }
     messageClient.send("flow:execute", {});
-  }, []);
+  }, [state.isDirty, state.nodes, state.edges]);
 
   const handleStop = useCallback(() => {
     if (state.isDebugMode) {
@@ -251,8 +299,13 @@ export const FlowEditorApp: React.FC = () => {
   }, [state.isDebugMode]);
 
   const handleDebugStart = useCallback(() => {
+    // Save before debug to ensure the latest flow is used
+    if (state.isDirty) {
+      messageClient.send("flow:save", { nodes: state.nodes, edges: state.edges });
+      dispatch({ type: "FLOW_SAVED" });
+    }
     messageClient.send("debug:start", {});
-  }, []);
+  }, [state.isDirty, state.nodes, state.edges]);
 
   const handleDebugStep = useCallback(() => {
     messageClient.send("debug:step", {});
@@ -277,7 +330,7 @@ export const FlowEditorApp: React.FC = () => {
   const handleNodesChange = useCallback((changes: unknown[]) => {
     const updatedNodes = applyNodeChanges(
       changes as NodeChange[],
-      state.nodes as any[],
+      state.nodes as unknown as Node[],
     );
     dispatch({ type: "NODES_CHANGED", nodes: updatedNodes as unknown as FlowNode[] });
   }, [state.nodes]);
@@ -285,21 +338,24 @@ export const FlowEditorApp: React.FC = () => {
   const handleEdgesChange = useCallback((changes: unknown[]) => {
     const updatedEdges = applyEdgeChanges(
       changes as EdgeChange[],
-      state.edges as any[],
+      state.edges as unknown as Edge[],
     );
     dispatch({ type: "EDGES_CHANGED", edges: updatedEdges as unknown as FlowEdge[] });
   }, [state.edges]);
 
   const handleConnect = useCallback((connection: Connection) => {
+    const targetHandle = connection.targetHandle ?? undefined;
     const newEdge: FlowEdge = {
       id: `e-${connection.source}-${connection.target}-${Date.now()}`,
       source: connection.source,
       target: connection.target,
       sourceHandle: connection.sourceHandle ?? undefined,
-      targetHandle: connection.targetHandle ?? undefined,
+      targetHandle,
     };
     pushState({ nodes: state.nodes, edges: state.edges });
-    dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, newEdge] });
+    // Trace: REV-016 #5 — 1入力1接続: 同一ターゲットポートへの既存エッジを除去
+    const filteredEdges = filterExistingEdgesForSameTarget(state.edges, connection.target, targetHandle);
+    dispatch({ type: "EDGES_CHANGED", edges: [...filteredEdges, newEdge] });
   }, [state.nodes, state.edges, pushState]);
 
   const handleNodeClick = useCallback((nodeId: string) => {
@@ -342,6 +398,11 @@ export const FlowEditorApp: React.FC = () => {
       n.id === nodeId ? { ...n, data: { ...n.data, settings } } : n,
     );
     dispatch({ type: "NODES_CHANGED", nodes: updatedNodes });
+    // Trace: REV-016 #12 — refresh dynamic metadata when settings change (e.g. SubFlow flowId)
+    const node = state.nodes.find(n => n.id === nodeId);
+    if (node && (node.type === "subFlow" || node.type === "aiPrompt")) {
+      messageClient.send("node:getMetadata", { nodeType: node.type, settings });
+    }
   }, [state.nodes]);
 
   const handleLabelChange = useCallback((nodeId: string, label: string) => {
@@ -373,6 +434,82 @@ export const FlowEditorApp: React.FC = () => {
     dispatch({ type: "NODES_CHANGED", nodes: selected as FlowNode[] });
   }, [state.nodes]);
 
+  // Trace: REV-016 #10 — deselect all nodes
+  const handleDeselectAll = useCallback(() => {
+    const deselected = state.nodes.map(n => ({ ...n, selected: false }));
+    dispatch({ type: "NODES_CHANGED", nodes: deselected as FlowNode[] });
+    dispatch({ type: "NODE_SELECTED", nodeId: null });
+  }, [state.nodes]);
+
+  // Trace: REV-016 #10 — copy selected nodes + internal edges to clipboard
+  const handleCopySelected = useCallback(() => {
+    const selectedNodes = getSelectedNodes(state.nodes);
+    if (selectedNodes.length === 0) return;
+    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    const internalEdges = getInternalEdges(state.edges, selectedIds);
+    setClipboard({ nodes: selectedNodes, edges: internalEdges });
+  }, [state.nodes, state.edges]);
+
+  // Trace: REV-016 #10 — cut selected nodes (copy + delete)
+  const handleCutSelected = useCallback(() => {
+    const selectedNodes = getSelectedNodes(state.nodes);
+    if (selectedNodes.length === 0) return;
+    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    const internalEdges = getInternalEdges(state.edges, selectedIds);
+    setClipboard({ nodes: selectedNodes, edges: internalEdges });
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const remainingNodes = state.nodes.filter(n => !selectedIds.has(n.id));
+    const remainingEdges = state.edges.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target));
+    dispatch({ type: "NODES_CHANGED", nodes: remainingNodes });
+    dispatch({ type: "EDGES_CHANGED", edges: remainingEdges });
+  }, [state.nodes, state.edges, pushState]);
+
+  // Trace: REV-016 #10 — paste clipboard at offset position
+  const handlePasteSelected = useCallback(() => {
+    if (!clipboard || clipboard.nodes.length === 0) return;
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const OFFSET = 50;
+    const { newNodes, idMap } = createRemappedNodes(clipboard.nodes, OFFSET, () => crypto.randomUUID());
+    const newEdges = remapEdges(clipboard.edges, idMap).map((e, i) => ({
+      ...e,
+      id: `e-${idMap.get(clipboard.edges[i].source)}-${idMap.get(clipboard.edges[i].target)}-${Date.now()}`,
+    }));
+    // Deselect existing nodes
+    const deselectedNodes = state.nodes.map(n => ({ ...n, selected: false }));
+    dispatch({ type: "NODES_CHANGED", nodes: [...deselectedNodes, ...newNodes] as FlowNode[] });
+    dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, ...newEdges] });
+  }, [clipboard, state.nodes, state.edges, pushState]);
+
+  // Trace: REV-016 #10 — duplicate selected nodes in place
+  const handleDuplicateSelected = useCallback(() => {
+    const selectedNodes = getSelectedNodes(state.nodes);
+    if (selectedNodes.length === 0) return;
+    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    const internalEdges = getInternalEdges(state.edges, selectedIds);
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const OFFSET = 50;
+    const { newNodes, idMap } = createRemappedNodes(selectedNodes, OFFSET, () => crypto.randomUUID());
+    const newEdges = remapEdges(internalEdges, idMap).map((e, i) => ({
+      ...e,
+      id: `e-${idMap.get(internalEdges[i].source)}-${idMap.get(internalEdges[i].target)}-${Date.now()}`,
+    }));
+    const deselectedNodes = state.nodes.map(n => ({ ...n, selected: false }));
+    dispatch({ type: "NODES_CHANGED", nodes: [...deselectedNodes, ...newNodes] as FlowNode[] });
+    dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, ...newEdges] });
+  }, [state.nodes, state.edges, pushState]);
+
+  // Trace: REV-016 #10 — delete selected nodes
+  const handleDeleteSelected = useCallback(() => {
+    const selectedNodes = getSelectedNodes(state.nodes);
+    if (selectedNodes.length === 0) return;
+    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const remainingNodes = state.nodes.filter(n => !selectedIds.has(n.id));
+    const remainingEdges = state.edges.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target));
+    dispatch({ type: "NODES_CHANGED", nodes: remainingNodes });
+    dispatch({ type: "EDGES_CHANGED", edges: remainingEdges });
+  }, [state.nodes, state.edges, pushState]);
+
   const handleOpenSettings = useCallback((nodeId: string) => {
     dispatch({ type: "NODE_SELECTED", nodeId });
   }, []);
@@ -393,6 +530,35 @@ export const FlowEditorApp: React.FC = () => {
     dispatch({ type: "NODES_CHANGED", nodes: [...state.nodes, newNode] });
   }, [state.nodes, state.edges, nodeTypesList, pushState]);
 
+  // Trace: REV-016 #8 — Auto layout using pluggable layout engine
+  const layoutEngine = useMemo(() => new DagreLayoutEngine(), []);
+  const handleAutoLayout = useCallback(() => {
+    // Default node dimensions (matching CSS fr-node approximate size)
+    const NODE_WIDTH = 160;
+    const NODE_HEIGHT = 60;
+    const layoutNodes = state.nodes.map(n => ({
+      id: n.id,
+      position: n.position,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+    }));
+    const layoutEdges = state.edges.map(e => ({
+      source: e.source,
+      target: e.target,
+    }));
+    const result = layoutEngine.layout(layoutNodes, layoutEdges, {
+      direction: "LR",
+      nodeSpacing: 50,
+      rankSpacing: 100,
+    });
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const updatedNodes = state.nodes.map(n => {
+      const laid = result.find(r => r.id === n.id);
+      return laid ? { ...n, position: laid.position } : n;
+    });
+    dispatch({ type: "NODES_CHANGED", nodes: updatedNodes });
+  }, [state.nodes, state.edges, layoutEngine, pushState]);
+
   // Trace: DD-02-007005 — Undo/Redo キーボードショートカット
   const handleUndo = useCallback(() => {
     const prevState = undo();
@@ -412,20 +578,49 @@ export const FlowEditorApp: React.FC = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
-        e.preventDefault();
-        handleUndo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+      // Skip shortcuts when typing in input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      const mod = e.ctrlKey || e.metaKey;
+      // Trace: DD-02-007005 — Cmd+Shift+Z (macOS redo) must be checked before Cmd+Z
+      if (mod && e.shiftKey && (e.key === "z" || e.key === "Z")) {
         e.preventDefault();
         handleRedo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      } else if (mod && !e.shiftKey && e.key === "z") {
+        e.preventDefault();
+        handleUndo();
+      } else if (mod && e.key === "y") {
+        e.preventDefault();
+        handleRedo();
+      } else if (mod && e.key === "s") {
         e.preventDefault();
         handleSave();
+      // Trace: REV-016 #10 — selection/clipboard shortcuts
+      } else if (mod && e.key === "a") {
+        e.preventDefault();
+        handleSelectAll();
+      } else if (mod && e.key === "c") {
+        e.preventDefault();
+        handleCopySelected();
+      } else if (mod && e.key === "v") {
+        e.preventDefault();
+        handlePasteSelected();
+      } else if (mod && e.key === "x") {
+        e.preventDefault();
+        handleCutSelected();
+      } else if (mod && e.key === "d") {
+        e.preventDefault();
+        handleDuplicateSelected();
+      } else if (e.key === "Escape") {
+        handleDeselectAll();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        handleDeleteSelected();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleUndo, handleRedo, handleSave]);
+  }, [handleUndo, handleRedo, handleSave, handleSelectAll, handleCopySelected, handlePasteSelected, handleCutSelected, handleDuplicateSelected, handleDeselectAll, handleDeleteSelected]);
 
   // Trace: DD-02-007003 — ノードデータに ports / executionState を付与
   const enrichedNodes = useMemo(() => {
@@ -466,6 +661,7 @@ export const FlowEditorApp: React.FC = () => {
           onToggleLeftPanel={() => setLeftPanelOpen(p => !p)}
           rightPanelOpen={rightPanelOpen}
           onToggleRightPanel={() => setRightPanelOpen(p => !p)}
+          onAutoLayout={handleAutoLayout}
         />
         <div className="fr-main">
           {leftPanelOpen && (
@@ -489,6 +685,7 @@ export const FlowEditorApp: React.FC = () => {
               onPasteNode={handlePasteNode}
               onSelectAll={handleSelectAll}
               onOpenSettings={handleOpenSettings}
+              onAutoLayout={handleAutoLayout}
               showMiniMap={showMiniMap}
             />
           </div>
@@ -517,7 +714,7 @@ export const FlowEditorApp: React.FC = () => {
               <PropertyPanel
                 selectedNode={selectedNodeForPanel}
                 executionOutput={selectedNodeOutput}
-                nodeMetadata={selectedNodeMetadata}
+                nodeMetadata={effectiveNodeMetadata}
                 onSettingsChange={handleSettingsChange}
                 onLabelChange={handleLabelChange}
                 onEnabledChange={handleEnabledChange}

@@ -9,3 +9,6 @@ export type { IExecutionService, Disposable } from "./IExecutionService.js";
 export type { IDebugService } from "./IDebugService.js";
 export type { IHistoryService } from "./IHistoryService.js";
 export type { IHistoryRepository } from "./IHistoryRepository.js";
+export type { ITriggerService, TriggerConfig, TriggerInfo } from "./ITriggerService.js";
+export type { IVariableStore } from "./IVariableStore.js";
+export { VariableStore } from "./IVariableStore.js";

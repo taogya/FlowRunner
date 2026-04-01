@@ -23,6 +23,12 @@ A node-based workflow execution extension for Visual Studio Code.
 
 - VS Code 1.99.0 or later
 
+## Documentation
+
+- [User Guide (English)](docs/user-guide.md)
+- [ユーザーガイド（日本語）](docs/user-guide.ja.md)
+- [README（日本語）](README.ja.md)
+
 ## License
 
 [BSD-3-Clause](LICENSE)

@@ -28,7 +28,7 @@ export class LogExecutor implements INodeExecutor {
     inputPorts: [{ id: "in", label: "入力", dataType: "any" }],
     outputPorts: [{ id: "out", label: "出力", dataType: "any" }],
     settingsSchema: [
-      { key: "message", label: "メッセージ", type: "text", required: false, defaultValue: "{{input}}" },
+      { key: "message", label: "メッセージ", type: "text", required: false, defaultValue: "{{input}}", placeholder: "{{input}}", description: "テンプレート {{input}}, {{input.xxx}}, {{vars.xxx}} が使用可能" },
       { key: "level", label: "ログレベル", type: "select", required: false, defaultValue: "info", options: [{ value: "info", label: "info" }, { value: "warn", label: "warn" }, { value: "error", label: "error" }] },
     ],
   };
@@ -48,8 +48,8 @@ export class LogExecutor implements INodeExecutor {
       return { status: "cancelled", outputs: {}, duration: 0 };
     }
     const message = context.settings.message
-      ? expandTemplate(context.settings.message as string, context.inputs.in)
-      : expandTemplate("{{input}}", context.inputs.in);
+      ? expandTemplate(context.settings.message as string, context.inputs.in, context.variables)
+      : expandTemplate("{{input}}", context.inputs.in, context.variables);
     const level = (context.settings.level as string) || "info";
     // Use LogOutputChannel methods for colored output if available
     const nodeId = context.nodeId;

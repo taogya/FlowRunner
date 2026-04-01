@@ -14,6 +14,8 @@ import { FileExecutor } from "@extension/executors/FileExecutor.js";
 import { HttpExecutor } from "@extension/executors/HttpExecutor.js";
 import { TransformExecutor } from "@extension/executors/TransformExecutor.js";
 import { CommentExecutor } from "@extension/executors/CommentExecutor.js";
+import { TryCatchExecutor } from "@extension/executors/TryCatchExecutor.js";
+import { ParallelExecutor } from "@extension/executors/ParallelExecutor.js";
 
 // Trace: DD-03-002004
 export interface BuiltinExecutorDeps {
@@ -37,4 +39,8 @@ export function registerBuiltinExecutors(
   registry.register("http", new HttpExecutor(deps.outputChannel));
   registry.register("transform", new TransformExecutor());
   registry.register("comment", new CommentExecutor());
+  // Trace: FEAT-00006-003004
+  registry.register("tryCatch", new TryCatchExecutor());
+  // Trace: FEAT-00007-003004
+  registry.register("parallel", new ParallelExecutor());
 }

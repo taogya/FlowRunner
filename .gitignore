@@ -1,0 +1,15 @@
+.DS_Store
+node_modules/
+dist/
+build/
+out/
+coverage/
+ref/
+.env
+*.log
+demo/
+.vscode-test/
+tmp/
+*.vsix
+.github/
+.flowrunner/

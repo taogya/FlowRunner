@@ -26,6 +26,7 @@ coverage/
 
 # Documentation (not needed in extension package)
 docs/
+README.ja.md
 tools/
 
 # Node modules (vsce bundles dependencies automatically)

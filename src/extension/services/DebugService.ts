@@ -5,7 +5,8 @@ import type { IHistoryService } from "@extension/interfaces/IHistoryService.js";
 import type { DebugEvent } from "@shared/types/events.js";
 import type { NodeResultMap } from "@shared/types/execution.js";
 import type { PortDataMap, NodeInstance, EdgeInstance } from "@shared/types/flow.js";
-import { topologicalSort, buildInputs } from "./executionHelpers.js";
+import { VariableStore } from "@extension/interfaces/IVariableStore.js";
+import { topologicalSort, buildInputs, findBodyNodes } from "./executionHelpers.js";
 
 interface FlowService {
   getFlow(flowId: string): Promise<{
@@ -33,6 +34,18 @@ export class DebugService {
   private flowId = "";
   private flowName = "";
   private skippedNodes = new Set<string>();
+  // Trace: DD-04-003006 — loop step state
+  private loopState: {
+    loopNodeId: string;
+    bodyNodes: NodeInstance[];
+    iterations: unknown[];
+    currentIteration: number;
+    bodyData: unknown;
+    doneOutput: unknown;
+  } | null = null;
+  private loopExecutedNodes = new Set<string>();
+  // Trace: FEAT-00002-003004
+  private variableStore = new VariableStore();
 
   constructor(
     flowService: FlowService,
@@ -64,6 +77,10 @@ export class DebugService {
     this.outputMap = new Map();
     this.nodeResults = {};
     this.skippedNodes = new Set();
+    this.loopState = null;
+    this.loopExecutedNodes = new Set();
+    // Trace: FEAT-00002-003004
+    this.variableStore = new VariableStore();
 
     // Fire debug:paused with first node
     this.fireEvent({
@@ -78,6 +95,12 @@ export class DebugService {
       throw new Error("No active debug session");
     }
 
+    // Trace: DD-04-003006 — if in loop mode, execute one iteration
+    if (this.loopState) {
+      await this.stepLoopIteration();
+      return;
+    }
+
     if (this.cursor >= this.sortedNodes.length) {
       this.endDebug();
       return;
@@ -85,28 +108,19 @@ export class DebugService {
 
     const currentNode = this.sortedNodes[this.cursor];
 
-    // If current node is disabled or in a skipped branch, advance past it without executing
-    if (currentNode.enabled === false || this.skippedNodes.has(currentNode.id)) {
+    // If current node is disabled, skipped, or already executed as loop body, advance past it
+    if (currentNode.enabled === false || this.skippedNodes.has(currentNode.id) || this.loopExecutedNodes.has(currentNode.id)) {
       this.cursor++;
 
-      // Skip any consecutive disabled/skipped nodes
+      // Skip any consecutive disabled/skipped/loop-executed nodes
       while (this.cursor < this.sortedNodes.length) {
         const n = this.sortedNodes[this.cursor];
-        if (n.enabled !== false && !this.skippedNodes.has(n.id)) break;
+        if (n.enabled !== false && !this.skippedNodes.has(n.id) && !this.loopExecutedNodes.has(n.id)) break;
         this.cursor++;
       }
 
       if (this.cursor >= this.sortedNodes.length) {
-        await this.historyService.saveRecord({
-          id: `${this.flowId}_${Date.now()}`,
-          flowId: this.flowId,
-          flowName: this.flowName,
-          startedAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
-          duration: 0,
-          status: "success",
-          nodeResults: Object.values(this.nodeResults),
-        });
+        await this.saveSuccessRecord();
         this.endDebug();
         return;
       }
@@ -135,16 +149,7 @@ export class DebugService {
         duration: 0,
         error: { message: errorMsg },
       };
-      await this.historyService.saveRecord({
-        id: `${this.flowId}_${Date.now()}`,
-        flowId: this.flowId,
-        flowName: this.flowName,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        duration: 0,
-        status: "error",
-        nodeResults: Object.values(this.nodeResults),
-      });
+      await this.saveErrorRecord();
       this.endDebug();
       return;
     }
@@ -156,6 +161,7 @@ export class DebugService {
       inputs,
       flowId: this.flowId,
       signal: new AbortController().signal,
+      variables: this.variableStore,
     };
 
     const result = await executor.execute(context);
@@ -180,9 +186,48 @@ export class DebugService {
           edge.sourceNodeId === currentNode.id &&
           !outputPorts.has(edge.sourcePortId)
         ) {
-          // BFS to find all nodes reachable from the unselected port
           this.markSkippedBranch(edge.targetNodeId);
         }
+      }
+    }
+
+    // Trace: DD-04-003006 — loop handling: enter loop mode if loop node with body nodes
+    if (currentNode.type === "loop" && result.status === "success") {
+      const bodyNodeIds = findBodyNodes(currentNode.id, this.edges);
+      if (bodyNodeIds.size > 0) {
+        const bodyNodes = this.sortedNodes.filter(n => bodyNodeIds.has(n.id));
+        const bodyData = result.outputs.body;
+        const iterations = Array.isArray(bodyData) ? bodyData : bodyData != null ? [bodyData] : [];
+
+        // Mark body nodes for skipping by main cursor (even if 0 iterations)
+        for (const bn of bodyNodes) {
+          this.loopExecutedNodes.add(bn.id);
+        }
+
+        if (iterations.length > 0 && bodyNodes.length > 0) {
+          // Enter loop mode
+          this.loopState = {
+            loopNodeId: currentNode.id,
+            bodyNodes,
+            iterations,
+            currentIteration: 0,
+            bodyData,
+            doneOutput: result.outputs.done,
+          };
+
+          // Set first iteration data
+          this.outputMap.set(currentNode.id, { body: iterations[0] });
+
+          // Fire debug:paused at first body node
+          this.fireEvent({
+            nextNodeId: bodyNodes[0].id,
+            intermediateResults: { ...this.nodeResults },
+          });
+          return; // Don't advance cursor — loop mode handles it
+        }
+
+        // 0 iterations — set done output, fall through to normal advance
+        this.outputMap.set(currentNode.id, { body: bodyData, done: result.outputs.done });
       }
     }
 
@@ -192,24 +237,14 @@ export class DebugService {
     let nextNodeIndex = this.cursor;
     while (nextNodeIndex < this.sortedNodes.length) {
       const nextNode = this.sortedNodes[nextNodeIndex];
-      if (nextNode.enabled !== false && !this.skippedNodes.has(nextNode.id)) {
+      if (nextNode.enabled !== false && !this.skippedNodes.has(nextNode.id) && !this.loopExecutedNodes.has(nextNode.id)) {
         break;
       }
       nextNodeIndex++;
     }
 
     if (nextNodeIndex >= this.sortedNodes.length) {
-      // Last node — save record and end debug
-      await this.historyService.saveRecord({
-        id: `${this.flowId}_${Date.now()}`,
-        flowId: this.flowId,
-        flowName: this.flowName,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-        duration: 0,
-        status: "success",
-        nodeResults: Object.values(this.nodeResults),
-      });
+      await this.saveSuccessRecord();
       this.endDebug();
       return;
     }
@@ -219,6 +254,100 @@ export class DebugService {
       nextNodeId: this.sortedNodes[nextNodeIndex].id,
       intermediateResults: { ...this.nodeResults },
     });
+  }
+
+  // Trace: DD-04-003006 — execute one loop iteration (all body nodes)
+  private async stepLoopIteration(): Promise<void> {
+    const state = this.loopState!;
+
+    for (const bodyNode of state.bodyNodes) {
+      if (bodyNode.enabled === false) continue;
+
+      const executor = this.executorRegistry.get(bodyNode.type);
+      const validation = executor.validate(bodyNode.settings);
+      if (!validation.valid) {
+        const errorMsg = `Validation failed for node ${bodyNode.id}: ${validation.errors?.map((e: { message: string }) => e.message).join(", ")}`;
+        this.nodeResults[bodyNode.id] = {
+          nodeId: bodyNode.id,
+          nodeType: bodyNode.type,
+          nodeLabel: bodyNode.label,
+          status: "error",
+          inputs: {},
+          outputs: {},
+          duration: 0,
+          error: { message: errorMsg },
+        };
+        await this.saveErrorRecord();
+        this.loopState = null;
+        this.endDebug();
+        return;
+      }
+
+      const inputs = buildInputs(bodyNode.id, this.edges, this.outputMap);
+      const context: IExecutionContext = {
+        nodeId: bodyNode.id,
+        settings: bodyNode.settings,
+        inputs,
+        flowId: this.flowId,
+        signal: new AbortController().signal,
+        variables: this.variableStore,
+      };
+
+      const result = await executor.execute(context);
+      this.outputMap.set(bodyNode.id, result.outputs);
+
+      this.nodeResults[bodyNode.id] = {
+        nodeId: bodyNode.id,
+        nodeType: bodyNode.type,
+        nodeLabel: bodyNode.label,
+        status: result.status,
+        inputs,
+        outputs: result.outputs,
+        duration: result.duration,
+      };
+
+      if (result.status === "error") {
+        await this.saveErrorRecord();
+        this.loopState = null;
+        this.endDebug();
+        return;
+      }
+    }
+
+    // Move to next iteration
+    state.currentIteration++;
+
+    if (state.currentIteration < state.iterations.length) {
+      // More iterations — update output and pause at first body node
+      this.outputMap.set(state.loopNodeId, { body: state.iterations[state.currentIteration] });
+      this.fireEvent({
+        nextNodeId: state.bodyNodes[0].id,
+        intermediateResults: { ...this.nodeResults },
+      });
+    } else {
+      // All iterations complete — restore done output and advance
+      this.outputMap.set(state.loopNodeId, { body: state.bodyData, done: state.doneOutput });
+      this.loopState = null;
+
+      // Advance cursor past loop node and all body nodes
+      this.cursor++;
+      while (this.cursor < this.sortedNodes.length) {
+        const n = this.sortedNodes[this.cursor];
+        if (n.enabled !== false && !this.skippedNodes.has(n.id) && !this.loopExecutedNodes.has(n.id)) break;
+        this.cursor++;
+      }
+
+      if (this.cursor >= this.sortedNodes.length) {
+        await this.saveSuccessRecord();
+        this.endDebug();
+        return;
+      }
+
+      this.fireEvent({
+        nextNodeId: this.sortedNodes[this.cursor].id,
+        intermediateResults: { ...this.nodeResults },
+      });
+    }
   }
 
   private markSkippedBranch(startNodeId: string): void {
@@ -233,6 +362,32 @@ export class DebugService {
         }
       }
     }
+  }
+
+  private async saveSuccessRecord(): Promise<void> {
+    await this.historyService.saveRecord({
+      id: `${this.flowId}_${Date.now()}`,
+      flowId: this.flowId,
+      flowName: this.flowName,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      duration: 0,
+      status: "success",
+      nodeResults: Object.values(this.nodeResults),
+    });
+  }
+
+  private async saveErrorRecord(): Promise<void> {
+    await this.historyService.saveRecord({
+      id: `${this.flowId}_${Date.now()}`,
+      flowId: this.flowId,
+      flowName: this.flowName,
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      duration: 0,
+      status: "error",
+      nodeResults: Object.values(this.nodeResults),
+    });
   }
 
   stopDebug(): void {
@@ -268,6 +423,7 @@ export class DebugService {
     this.sortedNodes = [];
     this.edges = [];
     this.cursor = 0;
+    this.loopState = null;
   }
 
   private fireEvent(event: DebugEvent): void {

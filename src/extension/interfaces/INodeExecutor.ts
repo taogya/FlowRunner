@@ -2,6 +2,7 @@
 import type { NodeSettings, PortDataMap } from "@shared/types/flow.js";
 import type { INodeTypeMetadata } from "@shared/types/node.js";
 import type { ValidationResult } from "@shared/types/execution.js";
+import type { IVariableStore } from "./IVariableStore.js";
 
 /**
  * ノード実行時のコンテキスト情報
@@ -15,6 +16,10 @@ export interface IExecutionContext {
   signal: AbortSignal;
   // Trace: DD-04-002009
   depth?: number;
+  // Trace: FEAT-00001-003008
+  triggerData?: Record<string, unknown>;
+  // Trace: FEAT-00002-003002
+  variables?: IVariableStore;
 }
 
 /**
@@ -43,4 +48,8 @@ export interface INodeExecutor {
 
   /** ノード種別のメタデータを返す */
   getMetadata(): INodeTypeMetadata;
+
+  /** ノード種別のメタデータを非同期で返す（動的メタデータが必要な場合のみ実装） */
+  // Trace: DD-03-002003, REV-016 #12
+  getMetadataAsync?(currentSettings?: NodeSettings): Promise<INodeTypeMetadata>;
 }

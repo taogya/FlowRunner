@@ -2,7 +2,7 @@
   "name": "flowrunner",
   "displayName": "FlowRunner",
   "description": "%extension.description%",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "Taogya",
   "license": "BSD-3-Clause",
   "icon": "media/icon.png",
@@ -77,12 +77,51 @@
         "title": "%command.refreshFlowList%",
         "category": "FlowRunner",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "flowrunner.activateTrigger",
+        "title": "%command.activateTrigger%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.deactivateTrigger",
+        "title": "%command.deactivateTrigger%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.deactivateAllTriggers",
+        "title": "%command.deactivateAllTriggers%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.createFlowFromTemplate",
+        "title": "%command.createFlowFromTemplate%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.saveAsTemplate",
+        "title": "%command.saveAsTemplate%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.exportFlow",
+        "title": "%command.exportFlow%",
+        "category": "FlowRunner"
+      },
+      {
+        "command": "flowrunner.importFlow",
+        "title": "%command.importFlow%",
+        "category": "FlowRunner"
       }
     ],
     "menus": {
       "view/title": [
         {
           "command": "flowrunner.createFlow",
+          "when": "view == flowrunner.flowList"
+        },
+        {
+          "command": "flowrunner.createFlowFromTemplate",
           "when": "view == flowrunner.flowList"
         },
         {
@@ -107,6 +146,10 @@
         {
           "command": "flowrunner.renameFlow",
           "when": "view == flowrunner.flowList"
+        },
+        {
+          "command": "flowrunner.exportFlow",
+          "when": "view == flowrunner.flowList"
         }
       ]
     },
@@ -124,7 +167,42 @@
           "description": "%config.historyMaxCount%"
         }
       }
-    }
+    },
+    "chatParticipants": [
+      {
+        "id": "flowrunner.flowrunner",
+        "name": "flowrunner",
+        "fullName": "FlowRunner",
+        "description": "%chatParticipant.description%",
+        "isSticky": false,
+        "commands": [
+          {
+            "name": "run",
+            "description": "%chatParticipant.command.run%"
+          },
+          {
+            "name": "list",
+            "description": "%chatParticipant.command.list%"
+          },
+          {
+            "name": "create",
+            "description": "%chatParticipant.command.create%"
+          }
+        ],
+        "disambiguation": [
+          {
+            "category": "flowrunner",
+            "description": "The user wants to run, list, or create automation flows using FlowRunner",
+            "examples": [
+              "Run the deployment flow",
+              "Show me all my flows",
+              "Create a flow that builds and tests my project",
+              "Make a workflow from my terminal history"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./ --noEmit && node esbuild.config.mjs",
@@ -135,14 +213,17 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "package": "npm run compile && npm run build:webview && vsce package"
+    "package": "npm ci && npm run compile && npm run build:webview && vsce package"
   },
   "devDependencies": {
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/jexl": "^2.3.4",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.99.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.2",
     "@vscode/vsce": "^2.20.0",
     "esbuild": "^0.27.3",
     "eslint": "^9.39.4",
@@ -154,8 +235,10 @@
     "vite": "^8.0.2"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@vscode/l10n": "^0.0.18",
     "@xyflow/react": "^12.10.1",
+    "jexl": "^2.3.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   }

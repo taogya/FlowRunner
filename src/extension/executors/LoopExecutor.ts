@@ -7,6 +7,8 @@ import type {
 import type { NodeSettings } from "@shared/types/flow.js";
 import type { INodeTypeMetadata } from "@shared/types/node.js";
 import type { ValidationResult } from "@shared/types/execution.js";
+// Trace: REV-016 #7 — migrate from new Function() to safeEval
+import { safeEval } from "./safeEval.js";
 
 // Trace: DD-03-007002
 const MAX_ITERATIONS = 10000;
@@ -27,7 +29,7 @@ export class LoopExecutor implements INodeExecutor {
     settingsSchema: [
       { key: "loopType", label: "ループ種別", type: "select", required: true, defaultValue: "count", description: "count: 指定回数繰り返す / condition: 条件がtrueの間繰り返す / list: 入力リストの各要素で繰り返す", options: [{ value: "count", label: "カウント（N回）" }, { value: "condition", label: "条件式（whileループ）" }, { value: "list", label: "リスト（forEachループ）" }] },
       { key: "count", label: "回数", type: "number", required: false, defaultValue: 1, description: "bodyポートに反復インデックス(0,1,2...)が渡されます", visibleWhen: { field: "loopType", value: "count" } },
-      { key: "expression", label: "条件式", type: "text", required: false, description: "式がtrueを返す間ループ継続。変数 input で入力データを参照", placeholder: "input.length > 0", visibleWhen: { field: "loopType", value: ["condition", "list"] } },
+      { key: "expression", label: "条件式", type: "text", required: false, description: "jexl式。input, index, vars.xxx が使用可能。式がtrueを返す間ループ継続", placeholder: "index < input|length", visibleWhen: { field: "loopType", value: ["condition", "list"] } },
     ],
   };
 
@@ -116,22 +118,21 @@ export class LoopExecutor implements INodeExecutor {
   }
 
   // Trace: DD-03-007002 — condition ループ
-  private executeCondition(
+  // Trace: REV-016 #7 — migrated from new Function() to safeEval for security
+  private async executeCondition(
     context: IExecutionContext,
     input: unknown,
     start: number,
-  ): IExecutionResult {
+  ): Promise<IExecutionResult> {
     const expression = context.settings.expression as string;
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
-    const fn = new Function("input", "index", `return ${expression}`);
     let iterations = 0;
 
     while (iterations < MAX_ITERATIONS) {
       if (context.signal.aborted) {
         return { status: "cancelled", outputs: {}, duration: Date.now() - start };
       }
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
-      const result = fn(input, iterations);
+      // jexl context: input (node input data), index (iteration counter), vars (shared variables)
+      const result = await safeEval(expression, input, context.variables, { index: iterations });
       if (!result) {
         break;
       }

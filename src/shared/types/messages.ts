@@ -24,7 +24,8 @@ export type WebViewToExtensionMessageType =
   | "debug:start"
   | "debug:step"
   | "debug:stop"
-  | "node:getTypes";
+  | "node:getTypes"
+  | "node:getMetadata";
 
 /**
  * Extension → WebView メッセージ型
@@ -39,4 +40,5 @@ export type ExtensionToWebViewMessageType =
   | "execution:nodeError"
   | "execution:flowCompleted"
   | "debug:paused"
+  | "node:metadataLoaded"
   | "error:general";
