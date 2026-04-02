@@ -1,6 +1,6 @@
 {
   "name": "taogya-flowrunner",
-  "displayName": "FlowRunner",
+  "displayName": "FlowRunner - Workflow Automator",
   "description": "%extension.description%",
   "version": "0.2.1",
   "publisher": "Taogya",
