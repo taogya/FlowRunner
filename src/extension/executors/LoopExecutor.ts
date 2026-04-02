@@ -29,7 +29,7 @@ export class LoopExecutor implements INodeExecutor {
     settingsSchema: [
       { key: "loopType", label: "ループ種別", type: "select", required: true, defaultValue: "count", description: "count: 指定回数繰り返す / condition: 条件がtrueの間繰り返す / list: 入力リストの各要素で繰り返す", options: [{ value: "count", label: "カウント（N回）" }, { value: "condition", label: "条件式（whileループ）" }, { value: "list", label: "リスト（forEachループ）" }] },
       { key: "count", label: "回数", type: "number", required: false, defaultValue: 1, description: "bodyポートに反復インデックス(0,1,2...)が渡されます", visibleWhen: { field: "loopType", value: "count" } },
-      { key: "expression", label: "条件式", type: "text", required: false, description: "jexl式。input, index, vars.xxx が使用可能。式がtrueを返す間ループ継続", placeholder: "index < input|length", visibleWhen: { field: "loopType", value: ["condition", "list"] } },
+      { key: "expression", label: "条件式", type: "text", required: false, description: "jexl式。input, index, vars.xxx が使用可能。式がtrueを返す間ループ継続", placeholder: "index < input|length", visibleWhen: { field: "loopType", value: "condition" } },
     ],
   };
 

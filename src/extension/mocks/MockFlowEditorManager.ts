@@ -26,6 +26,10 @@ export class MockFlowEditorManager implements IFlowEditorManager {
     return this.activeFlowId;
   }
 
+  postMessageToFlow(_flowId: string, _message: unknown): void {
+    // no-op in mock
+  }
+
   dispose(): void {
     this.openPanels.clear();
     this.activeFlowId = undefined;

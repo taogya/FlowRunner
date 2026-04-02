@@ -25,7 +25,10 @@ export type WebViewToExtensionMessageType =
   | "debug:step"
   | "debug:stop"
   | "node:getTypes"
-  | "node:getMetadata";
+  | "node:getMetadata"
+  | "trigger:activate"
+  | "trigger:deactivate"
+  | "trigger:getStatus";
 
 /**
  * Extension → WebView メッセージ型
@@ -41,4 +44,5 @@ export type ExtensionToWebViewMessageType =
   | "execution:flowCompleted"
   | "debug:paused"
   | "node:metadataLoaded"
+  | "trigger:statusChanged"
   | "error:general";

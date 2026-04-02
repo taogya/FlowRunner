@@ -3,6 +3,7 @@ import type { IFlowService } from "@extension/interfaces/IFlowService.js";
 import type { IExecutionService } from "@extension/interfaces/IExecutionService.js";
 import type { IDebugService } from "@extension/interfaces/IDebugService.js";
 import type { INodeExecutorRegistry } from "@extension/interfaces/INodeExecutorRegistry.js";
+import type { ITriggerService, TriggerConfig } from "@extension/interfaces/ITriggerService.js";
 import type { FlowRunnerMessage } from "@shared/types/messages.js";
 import type { FlowEvent } from "@shared/types/events.js";
 import type { DebugEvent } from "@shared/types/events.js";
@@ -45,17 +46,20 @@ export class MessageBroker {
   private readonly executionService: IExecutionService;
   private readonly debugService: IDebugService;
   private readonly nodeExecutorRegistry: INodeExecutorRegistry;
+  private readonly triggerService?: ITriggerService;
 
   constructor(
     flowService: IFlowService,
     executionService: IExecutionService,
     debugService: IDebugService,
     nodeExecutorRegistry: INodeExecutorRegistry,
+    triggerService?: ITriggerService,
   ) {
     this.flowService = flowService;
     this.executionService = executionService;
     this.debugService = debugService;
     this.nodeExecutorRegistry = nodeExecutorRegistry;
+    this.triggerService = triggerService;
 
     // Trace: DD-01-005003
     this.handlerMap = new Map<string, MessageHandler>([
@@ -137,6 +141,39 @@ export class MessageBroker {
         return { type: "node:metadataLoaded", payload: { nodeType, metadata: meta } };
       }],
     ]);
+
+    // Trigger handlers (registered only when triggerService is provided)
+    if (this.triggerService) {
+      const ts = this.triggerService;
+      this.handlerMap.set("trigger:activate", async (payload) => {
+        const flowId = requireString(payload, "flowId");
+        const flow = await this.flowService.getFlow(flowId);
+        if (!flow) return;
+        const triggerNode = flow.nodes.find((n) => n.type === "trigger");
+        if (!triggerNode) return;
+        const config: TriggerConfig = {
+          triggerType: (triggerNode.settings.triggerType as TriggerConfig["triggerType"]) ?? "manual",
+          filePattern: triggerNode.settings.filePattern as string | undefined,
+          debounceMs: triggerNode.settings.debounceMs as number | undefined,
+          intervalSeconds: triggerNode.settings.intervalSeconds as number | undefined,
+        };
+        if (config.triggerType === "manual") {
+          return { type: "trigger:statusChanged", payload: { active: false, reason: "manual" } };
+        }
+        ts.activateTrigger(flowId, config);
+        return { type: "trigger:statusChanged", payload: { active: true } };
+      });
+      this.handlerMap.set("trigger:deactivate", async (payload) => {
+        const flowId = requireString(payload, "flowId");
+        ts.deactivateTrigger(flowId);
+        return { type: "trigger:statusChanged", payload: { active: false } };
+      });
+      this.handlerMap.set("trigger:getStatus", async (payload) => {
+        const flowId = requireString(payload, "flowId");
+        const active = ts.isActive(flowId);
+        return { type: "trigger:statusChanged", payload: { active } };
+      });
+    }
   }
 
   // Trace: DD-01-005004

@@ -36,6 +36,14 @@ body {
   font-size: var(--fr-font-size);
   color: var(--fr-fg);
   background: var(--fr-bg);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Allow text selection inside input/textarea/select */
+input, textarea, select, [contenteditable="true"] {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* ===================== Toolbar ===================== */
@@ -330,6 +338,14 @@ body {
 .fr-node--comment { background: #2d2d1a; border: 1px dashed #7a7a40; }
 .fr-node--comment .fr-node-header { color: #b0b060; }
 .fr-node--comment .fr-node-type-badge { background: #7a7a40; }
+
+.fr-node--tryCatch { background: #2a1a1a; border: 1px solid #8a3a3a; }
+.fr-node--tryCatch .fr-node-header { color: #f08080; }
+.fr-node--tryCatch .fr-node-type-badge { background: #8a3a3a; }
+
+.fr-node--parallel { background: #1a2a30; border: 1px solid #2a6a80; }
+.fr-node--parallel .fr-node-header { color: #70c8e0; }
+.fr-node--parallel .fr-node-type-badge { background: #2a6a80; }
 
 /* Execution state indicator colors */
 .fr-node-status--idle { background: #555; }
@@ -715,6 +731,32 @@ body {
   opacity: 0.5;
   transform: translate(-50%, -50%);
   filter: drop-shadow(0 0 8px var(--fr-focus-border));
+}
+
+/* Ghost paste overlay: covers canvas during paste placement */
+.fr-ghost-paste-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  cursor: crosshair;
+}
+
+.fr-ghost-paste-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--fr-focus-border, #007fd4);
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  pointer-events: none;
 }
 
 /* ===================== Layout ===================== */

@@ -10,8 +10,8 @@ interface UndoRedoResult {
   canUndo: boolean;
   canRedo: boolean;
   pushState: (state: FlowState) => void;
-  undo: () => FlowState | undefined;
-  redo: () => FlowState | undefined;
+  undo: (currentState: FlowState) => FlowState | undefined;
+  redo: (currentState: FlowState) => FlowState | undefined;
 }
 
 const MAX_HISTORY = 50;
@@ -29,18 +29,18 @@ export function useUndoRedo(): UndoRedoResult {
     }
   }, []);
 
-  const undo = useCallback(() => {
+  const undo = useCallback((currentState: FlowState) => {
     const state = undoStackRef.current.pop();
     if (state) {
-      redoStackRef.current.push(state);
+      redoStackRef.current.push(currentState);
     }
     return state;
   }, []);
 
-  const redo = useCallback(() => {
+  const redo = useCallback((currentState: FlowState) => {
     const state = redoStackRef.current.pop();
     if (state) {
-      undoStackRef.current.push(state);
+      undoStackRef.current.push(currentState);
     }
     return state;
   }, []);

@@ -13,6 +13,9 @@ export interface IFlowEditorManager {
   /** 現在アクティブなエディタのフロー ID を返す。エディタ未表示なら undefined */
   getActiveFlowId(): string | undefined;
 
+  /** 指定フローの WebView にメッセージを送信する */
+  postMessageToFlow(flowId: string, message: unknown): void;
+
   /** 全パネルを破棄する。deactivate() 時に呼ばれる */
   dispose(): void;
 }

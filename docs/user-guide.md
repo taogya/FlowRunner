@@ -48,7 +48,10 @@ FlowRunner is a node-based workflow execution extension for Visual Studio Code. 
 |--------|--------|
 | ▶ Execute | Save & run the flow |
 | 🐛 Debug | Save & start debug mode |
-| ⇶ Auto Layout | Arrange nodes automatically (left-to-right) |
+| ⇶ Auto Layout (LR) | Arrange nodes left-to-right. If 2+ nodes are selected, only selected nodes are arranged |
+| ⇵ Auto Layout (TB) | Arrange nodes top-to-bottom. If 2+ nodes are selected, only selected nodes are arranged |
+| ┃ Align X | Align selected nodes vertically (unify X coordinate) |
+| ━ Align Y | Align selected nodes horizontally (unify Y coordinate) |
 
 ### Context Menu
 

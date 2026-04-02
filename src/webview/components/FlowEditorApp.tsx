@@ -109,11 +109,25 @@ export const FlowEditorApp: React.FC = () => {
   // Trace: REV-016 #10 — clipboard for multi-node copy/paste
   const [clipboard, setClipboard] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] } | null>(null);
 
+  // Ghost paste mode: nodes follow cursor until user clicks to place
+  const [ghostPaste, setGhostPaste] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] } | null>(null);
+
+  // Trigger state
+  const [isTriggerActive, setIsTriggerActive] = useState(false);
+
   // Trace: DD-02-004002 — 派生ステート
   const isRunning = useMemo(
     () => Array.from(state.executionState.values()).some(s => s === "running"),
     [state.executionState],
   );
+
+  // Check if flow has a non-manual trigger node
+  const hasTriggerNode = useMemo(() => {
+    const triggerNode = state.nodes.find(n => n.type === "trigger");
+    if (!triggerNode) return false;
+    const tt = (triggerNode.data?.settings as Record<string, unknown>)?.triggerType;
+    return tt === "schedule" || tt === "fileChange";
+  }, [state.nodes]);
 
   const selectedNode = useMemo(() => {
     if (!state.selectedNodeId) return null;
@@ -176,10 +190,11 @@ export const FlowEditorApp: React.FC = () => {
     messageClient.send("node:getMetadata", { nodeType: selectedNode.type, settings });
   }, [selectedNode]);
 
-  // Trace: DD-02-004003 — mount 時に flow:load / node:getTypes メッセージ送信
+  // Trace: DD-02-004003 — mount 時に flow:load / node:getTypes / trigger:getStatus メッセージ送信
   useEffect(() => {
     messageClient.send("flow:load", {});
     messageClient.send("node:getTypes", {});
+    messageClient.send("trigger:getStatus", {});
   }, []);
 
   // Trace: DD-02-004003 — メッセージハンドリング
@@ -273,6 +288,9 @@ export const FlowEditorApp: React.FC = () => {
           case "node:metadataLoaded":
             setDynamicMetadata(msg.payload.metadata as INodeTypeMetadata);
             break;
+          case "trigger:statusChanged":
+            setIsTriggerActive((msg.payload.active as boolean) ?? false);
+            break;
         }
       },
     );
@@ -288,6 +306,18 @@ export const FlowEditorApp: React.FC = () => {
     }
     messageClient.send("flow:execute", {});
   }, [state.isDirty, state.nodes, state.edges]);
+
+  const handleTriggerActivate = useCallback(() => {
+    if (state.isDirty) {
+      messageClient.send("flow:save", { nodes: state.nodes, edges: state.edges });
+      dispatch({ type: "FLOW_SAVED" });
+    }
+    messageClient.send("trigger:activate", {});
+  }, [state.isDirty, state.nodes, state.edges]);
+
+  const handleTriggerDeactivate = useCallback(() => {
+    messageClient.send("trigger:deactivate", {});
+  }, []);
 
   const handleStop = useCallback(() => {
     if (state.isDebugMode) {
@@ -364,11 +394,16 @@ export const FlowEditorApp: React.FC = () => {
 
   // Trace: DD-02-006002 — NodePalette D&D
   const handleNodeDrop = useCallback((nodeType: string, position: { x: number; y: number }) => {
+    const NODE_WIDTH = 160;
+    const NODE_HEIGHT = 60;
     const metadata = nodeTypesList.find(m => m.nodeType === nodeType);
     const newNode: FlowNode = {
       id: crypto.randomUUID(),
       type: nodeType,
-      position,
+      position: {
+        x: position.x - NODE_WIDTH / 2,
+        y: position.y - NODE_HEIGHT / 2,
+      },
       data: {
         label: metadata?.label ?? nodeType,
         settings: {},
@@ -464,48 +499,67 @@ export const FlowEditorApp: React.FC = () => {
     dispatch({ type: "EDGES_CHANGED", edges: remainingEdges });
   }, [state.nodes, state.edges, pushState]);
 
-  // Trace: REV-016 #10 — paste clipboard at offset position
+  // Trace: REV-016 #10 — paste clipboard: enter ghost mode for placement
   const handlePasteSelected = useCallback(() => {
     if (!clipboard || clipboard.nodes.length === 0) return;
-    pushState({ nodes: state.nodes, edges: state.edges });
-    const OFFSET = 50;
-    const { newNodes, idMap } = createRemappedNodes(clipboard.nodes, OFFSET, () => crypto.randomUUID());
+    const { newNodes, idMap } = createRemappedNodes(clipboard.nodes, 0, () => crypto.randomUUID());
     const newEdges = remapEdges(clipboard.edges, idMap).map((e, i) => ({
       ...e,
       id: `e-${idMap.get(clipboard.edges[i].source)}-${idMap.get(clipboard.edges[i].target)}-${Date.now()}`,
     }));
-    // Deselect existing nodes
-    const deselectedNodes = state.nodes.map(n => ({ ...n, selected: false }));
-    dispatch({ type: "NODES_CHANGED", nodes: [...deselectedNodes, ...newNodes] as FlowNode[] });
-    dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, ...newEdges] });
-  }, [clipboard, state.nodes, state.edges, pushState]);
+    setGhostPaste({ nodes: newNodes as FlowNode[], edges: newEdges });
+  }, [clipboard]);
 
-  // Trace: REV-016 #10 — duplicate selected nodes in place
+  // Confirm ghost paste: place nodes at clicked flow position
+  const handleGhostPasteConfirm = useCallback((flowPosition: { x: number; y: number }) => {
+    if (!ghostPaste) return;
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const cx = ghostPaste.nodes.reduce((s, n) => s + n.position.x, 0) / ghostPaste.nodes.length;
+    const cy = ghostPaste.nodes.reduce((s, n) => s + n.position.y, 0) / ghostPaste.nodes.length;
+    const dx = flowPosition.x - cx;
+    const dy = flowPosition.y - cy;
+    const placedNodes = ghostPaste.nodes.map(n => ({
+      ...n,
+      position: { x: n.position.x + dx, y: n.position.y + dy },
+      selected: true,
+    }));
+    const deselectedNodes = state.nodes.map(n => ({ ...n, selected: false }));
+    dispatch({ type: "NODES_CHANGED", nodes: [...deselectedNodes, ...placedNodes] });
+    dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, ...ghostPaste.edges] });
+    setGhostPaste(null);
+  }, [ghostPaste, state.nodes, state.edges, pushState]);
+
+  // Cancel ghost paste
+  const handleGhostPasteCancel = useCallback(() => {
+    setGhostPaste(null);
+  }, []);
+
+  // Trace: REV-016 #10 — duplicate selected nodes: enter ghost mode for placement
   const handleDuplicateSelected = useCallback(() => {
     const selectedNodes = getSelectedNodes(state.nodes);
     if (selectedNodes.length === 0) return;
     const selectedIds = new Set(selectedNodes.map(n => n.id));
     const internalEdges = getInternalEdges(state.edges, selectedIds);
-    pushState({ nodes: state.nodes, edges: state.edges });
-    const OFFSET = 50;
-    const { newNodes, idMap } = createRemappedNodes(selectedNodes, OFFSET, () => crypto.randomUUID());
+    const { newNodes, idMap } = createRemappedNodes(selectedNodes, 0, () => crypto.randomUUID());
     const newEdges = remapEdges(internalEdges, idMap).map((e, i) => ({
       ...e,
       id: `e-${idMap.get(internalEdges[i].source)}-${idMap.get(internalEdges[i].target)}-${Date.now()}`,
     }));
-    const deselectedNodes = state.nodes.map(n => ({ ...n, selected: false }));
-    dispatch({ type: "NODES_CHANGED", nodes: [...deselectedNodes, ...newNodes] as FlowNode[] });
-    dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, ...newEdges] });
-  }, [state.nodes, state.edges, pushState]);
+    setGhostPaste({ nodes: newNodes as FlowNode[], edges: newEdges });
+  }, [state.nodes, state.edges]);
 
-  // Trace: REV-016 #10 — delete selected nodes
+  // Trace: REV-016 #10 — delete selected nodes and edges
   const handleDeleteSelected = useCallback(() => {
     const selectedNodes = getSelectedNodes(state.nodes);
-    if (selectedNodes.length === 0) return;
-    const selectedIds = new Set(selectedNodes.map(n => n.id));
+    const selectedEdges = state.edges.filter(e => (e as unknown as { selected?: boolean }).selected);
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+    const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
+    const selectedEdgeIds = new Set(selectedEdges.map(e => e.id));
     pushState({ nodes: state.nodes, edges: state.edges });
-    const remainingNodes = state.nodes.filter(n => !selectedIds.has(n.id));
-    const remainingEdges = state.edges.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target));
+    const remainingNodes = state.nodes.filter(n => !selectedNodeIds.has(n.id));
+    const remainingEdges = state.edges.filter(e =>
+      !selectedEdgeIds.has(e.id) && !selectedNodeIds.has(e.source) && !selectedNodeIds.has(e.target),
+    );
     dispatch({ type: "NODES_CHANGED", nodes: remainingNodes });
     dispatch({ type: "EDGES_CHANGED", edges: remainingEdges });
   }, [state.nodes, state.edges, pushState]);
@@ -536,13 +590,18 @@ export const FlowEditorApp: React.FC = () => {
     // Default node dimensions (matching CSS fr-node approximate size)
     const NODE_WIDTH = 160;
     const NODE_HEIGHT = 60;
-    const layoutNodes = state.nodes.map(n => ({
+    const selected = getSelectedNodes(state.nodes);
+    const isPartial = selected.length >= 2;
+    const targetNodes = isPartial ? selected : state.nodes;
+    const targetIds = new Set(targetNodes.map(n => n.id));
+    const targetEdges = state.edges.filter(e => targetIds.has(e.source) && targetIds.has(e.target));
+    const layoutNodes = targetNodes.map(n => ({
       id: n.id,
       position: n.position,
       width: NODE_WIDTH,
       height: NODE_HEIGHT,
     }));
-    const layoutEdges = state.edges.map(e => ({
+    const layoutEdges = targetEdges.map(e => ({
       source: e.source,
       target: e.target,
     }));
@@ -551,30 +610,110 @@ export const FlowEditorApp: React.FC = () => {
       nodeSpacing: 50,
       rankSpacing: 100,
     });
+    // When laying out selected nodes only, preserve the centroid position
+    let offsetX = 0;
+    let offsetY = 0;
+    if (isPartial && result.length > 0) {
+      const origCx = targetNodes.reduce((s, n) => s + n.position.x, 0) / targetNodes.length;
+      const origCy = targetNodes.reduce((s, n) => s + n.position.y, 0) / targetNodes.length;
+      const newCx = result.reduce((s, r) => s + r.position.x, 0) / result.length;
+      const newCy = result.reduce((s, r) => s + r.position.y, 0) / result.length;
+      offsetX = origCx - newCx;
+      offsetY = origCy - newCy;
+    }
     pushState({ nodes: state.nodes, edges: state.edges });
     const updatedNodes = state.nodes.map(n => {
       const laid = result.find(r => r.id === n.id);
-      return laid ? { ...n, position: laid.position } : n;
+      return laid ? { ...n, position: { x: laid.position.x + offsetX, y: laid.position.y + offsetY } } : n;
     });
     dispatch({ type: "NODES_CHANGED", nodes: updatedNodes });
   }, [state.nodes, state.edges, layoutEngine, pushState]);
 
+  // Auto layout: Top → Bottom (vertical)
+  const handleAutoLayoutVertical = useCallback(() => {
+    const NODE_WIDTH = 160;
+    const NODE_HEIGHT = 60;
+    const selected = getSelectedNodes(state.nodes);
+    const isPartial = selected.length >= 2;
+    const targetNodes = isPartial ? selected : state.nodes;
+    const targetIds = new Set(targetNodes.map(n => n.id));
+    const targetEdges = state.edges.filter(e => targetIds.has(e.source) && targetIds.has(e.target));
+    const layoutNodes = targetNodes.map(n => ({
+      id: n.id,
+      position: n.position,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+    }));
+    const layoutEdges = targetEdges.map(e => ({
+      source: e.source,
+      target: e.target,
+    }));
+    const result = layoutEngine.layout(layoutNodes, layoutEdges, {
+      direction: "TB",
+      nodeSpacing: 50,
+      rankSpacing: 100,
+    });
+    // When laying out selected nodes only, preserve the centroid position
+    let offsetX = 0;
+    let offsetY = 0;
+    if (isPartial && result.length > 0) {
+      const origCx = targetNodes.reduce((s, n) => s + n.position.x, 0) / targetNodes.length;
+      const origCy = targetNodes.reduce((s, n) => s + n.position.y, 0) / targetNodes.length;
+      const newCx = result.reduce((s, r) => s + r.position.x, 0) / result.length;
+      const newCy = result.reduce((s, r) => s + r.position.y, 0) / result.length;
+      offsetX = origCx - newCx;
+      offsetY = origCy - newCy;
+    }
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const updatedNodes = state.nodes.map(n => {
+      const laid = result.find(r => r.id === n.id);
+      return laid ? { ...n, position: { x: laid.position.x + offsetX, y: laid.position.y + offsetY } } : n;
+    });
+    dispatch({ type: "NODES_CHANGED", nodes: updatedNodes });
+  }, [state.nodes, state.edges, layoutEngine, pushState]);
+
+  // Align selected nodes' X coordinate (vertical column)
+  const handleAlignX = useCallback(() => {
+    const selected = getSelectedNodes(state.nodes);
+    if (selected.length < 2) return;
+    const avgX = selected.reduce((sum, n) => sum + (n as FlowNode).position.x, 0) / selected.length;
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const selectedIds = new Set(selected.map(n => n.id));
+    const updated = state.nodes.map(n =>
+      selectedIds.has(n.id) ? { ...n, position: { ...n.position, x: avgX } } : n,
+    );
+    dispatch({ type: "NODES_CHANGED", nodes: updated });
+  }, [state.nodes, state.edges, pushState]);
+
+  // Align selected nodes' Y coordinate (horizontal row)
+  const handleAlignY = useCallback(() => {
+    const selected = getSelectedNodes(state.nodes);
+    if (selected.length < 2) return;
+    const avgY = selected.reduce((sum, n) => sum + (n as FlowNode).position.y, 0) / selected.length;
+    pushState({ nodes: state.nodes, edges: state.edges });
+    const selectedIds = new Set(selected.map(n => n.id));
+    const updated = state.nodes.map(n =>
+      selectedIds.has(n.id) ? { ...n, position: { ...n.position, y: avgY } } : n,
+    );
+    dispatch({ type: "NODES_CHANGED", nodes: updated });
+  }, [state.nodes, state.edges, pushState]);
+
   // Trace: DD-02-007005 — Undo/Redo キーボードショートカット
   const handleUndo = useCallback(() => {
-    const prevState = undo();
+    const prevState = undo({ nodes: state.nodes, edges: state.edges });
     if (prevState) {
       dispatch({ type: "NODES_CHANGED", nodes: prevState.nodes as FlowNode[] });
       dispatch({ type: "EDGES_CHANGED", edges: prevState.edges as FlowEdge[] });
     }
-  }, [undo]);
+  }, [undo, state.nodes, state.edges]);
 
   const handleRedo = useCallback(() => {
-    const nextState = redo();
+    const nextState = redo({ nodes: state.nodes, edges: state.edges });
     if (nextState) {
       dispatch({ type: "NODES_CHANGED", nodes: nextState.nodes as FlowNode[] });
       dispatch({ type: "EDGES_CHANGED", edges: nextState.edges as FlowEdge[] });
     }
-  }, [redo]);
+  }, [redo, state.nodes, state.edges]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -613,14 +752,18 @@ export const FlowEditorApp: React.FC = () => {
         e.preventDefault();
         handleDuplicateSelected();
       } else if (e.key === "Escape") {
-        handleDeselectAll();
+        if (ghostPaste) {
+          handleGhostPasteCancel();
+        } else {
+          handleDeselectAll();
+        }
       } else if (e.key === "Delete" || e.key === "Backspace") {
         handleDeleteSelected();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleUndo, handleRedo, handleSave, handleSelectAll, handleCopySelected, handlePasteSelected, handleCutSelected, handleDuplicateSelected, handleDeselectAll, handleDeleteSelected]);
+  }, [handleUndo, handleRedo, handleSave, handleSelectAll, handleCopySelected, handlePasteSelected, handleCutSelected, handleDuplicateSelected, handleDeselectAll, handleDeleteSelected, ghostPaste, handleGhostPasteCancel]);
 
   // Trace: DD-02-007003 — ノードデータに ports / executionState を付与
   const enrichedNodes = useMemo(() => {
@@ -662,6 +805,14 @@ export const FlowEditorApp: React.FC = () => {
           rightPanelOpen={rightPanelOpen}
           onToggleRightPanel={() => setRightPanelOpen(p => !p)}
           onAutoLayout={handleAutoLayout}
+          onAutoLayoutVertical={handleAutoLayoutVertical}
+          onAlignX={handleAlignX}
+          onAlignY={handleAlignY}
+          hasSelection={getSelectedNodes(state.nodes).length >= 2}
+          isTriggerActive={isTriggerActive}
+          hasTriggerNode={hasTriggerNode}
+          onTriggerActivate={handleTriggerActivate}
+          onTriggerDeactivate={handleTriggerDeactivate}
         />
         <div className="fr-main">
           {leftPanelOpen && (
@@ -681,12 +832,18 @@ export const FlowEditorApp: React.FC = () => {
               onNodeDrop={handleNodeDrop}
               onDeleteNode={handleDeleteNode}
               onDeleteEdge={handleDeleteEdge}
+              onDeleteSelected={handleDeleteSelected}
               onCutNode={handleCutNode}
               onPasteNode={handlePasteNode}
               onSelectAll={handleSelectAll}
               onOpenSettings={handleOpenSettings}
               onAutoLayout={handleAutoLayout}
               showMiniMap={showMiniMap}
+              ghostPasteNodeCount={ghostPaste ? ghostPaste.nodes.length : 0}
+              ghostPasteFirstType={ghostPaste?.nodes[0]?.type}
+              ghostPasteFirstLabel={ghostPaste?.nodes[0]?.data?.label as string | undefined}
+              onGhostPasteConfirm={handleGhostPasteConfirm}
+              onGhostPasteCancel={handleGhostPasteCancel}
             />
           </div>
           {rightPanelOpen && (

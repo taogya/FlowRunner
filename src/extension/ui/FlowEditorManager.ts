@@ -1,6 +1,8 @@
 // Trace: DD-02-003002, DD-02-003003, DD-02-003004, DD-02-003005
 import * as vscode from "vscode";
 import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 import type { IFlowEditorManager } from "@extension/interfaces/IFlowEditorManager.js";
 
 type BrokerFactory = () => {
@@ -103,6 +105,13 @@ export class FlowEditorManager implements IFlowEditorManager {
     return this.activeFlowId;
   }
 
+  postMessageToFlow(flowId: string, message: unknown): void {
+    const entry = this.panels.get(flowId);
+    if (entry) {
+      void entry.panel.webview.postMessage(message);
+    }
+  }
+
   // Trace: DD-02-003004
   private getHtmlContent(panel: vscode.WebviewPanel): string {
     const webviewUri = panel.webview.asWebviewUri(
@@ -115,8 +124,22 @@ export class FlowEditorManager implements IFlowEditorManager {
     const cspSource = (panel.webview as any).cspSource ?? "";
     const nonce = crypto.randomBytes(16).toString("base64");
 
+    // Trace: WebView i18n — inject l10n bundle for current locale
+    const lang = vscode.env.language;
+    let l10nBundleJson = "{}";
+    if (lang && lang !== "en") {
+      try {
+        const bundlePath = path.join(this.extensionUri.fsPath, "l10n", `bundle.l10n.${lang}.json`);
+        l10nBundleJson = fs.readFileSync(bundlePath, "utf-8");
+        // Sanitize to prevent script injection in inline script
+        l10nBundleJson = l10nBundleJson.replace(/<\//g, "<\\/");
+      } catch {
+        // Bundle not available for this language, fall back to English
+      }
+    }
+
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${lang}">
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${cspSource}; style-src ${cspSource} 'unsafe-inline';">
@@ -126,6 +149,7 @@ export class FlowEditorManager implements IFlowEditorManager {
 </head>
 <body>
   <div id="root"></div>
+  <script nonce="${nonce}">window.__VSCODE_L10N_BUNDLE__=${l10nBundleJson};</script>
   <script nonce="${nonce}" src="${webviewUri.toString()}"></script>
 </body>
 </html>`;

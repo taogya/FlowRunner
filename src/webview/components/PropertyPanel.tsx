@@ -1,5 +1,6 @@
 // Trace: DD-02-008001, DD-02-008002, DD-02-008003
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import * as l10n from "@vscode/l10n";
 import type { INodeTypeMetadata, SettingFieldDef } from "@shared/types/node.js";
 import type { NodeResult } from "@shared/types/execution.js";
 import type { NodeSettings } from "@shared/types/flow.js";
@@ -41,7 +42,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     return (
       <div data-testid="property-panel" className="fr-panel">
         <div className="fr-panel-empty">
-          ノードを選択してください / Select a node
+          {l10n.t("Select a node")}
         </div>
       </div>
     );
@@ -56,7 +57,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           aria-selected={activeTab === "settings"}
           onClick={() => setActiveTab("settings")}
         >
-          Settings
+          {l10n.t("Settings")}
         </button>
         <button
           role="tab"
@@ -64,7 +65,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           aria-selected={activeTab === "output"}
           onClick={() => setActiveTab("output")}
         >
-          Output
+          {l10n.t("Output")}
         </button>
       </div>
       <div className="fr-panel-content">
@@ -78,7 +79,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     checked={selectedNode.enabled}
                     onChange={(e) => onEnabledChange?.(selectedNode.id, e.target.checked)}
                   />
-                  有効 (Enabled)
+                  {l10n.t("Enabled")}
                 </label>
               </div>
             )}
@@ -160,12 +161,12 @@ const SettingsTab: React.FC<SettingsTabProps> = ({
   return (
     <div data-testid="settings-tab">
       <div className="fr-field">
-        <label htmlFor="field-node-label">ノード名</label>
+        <label htmlFor="field-node-label">{l10n.t("Node Name")}</label>
         <input
           id="field-node-label"
           type="text"
           value={label}
-          placeholder="ノード名を入力"
+          placeholder={l10n.t("Enter node name")}
           onChange={(e) => onLabelChange?.(nodeId, e.target.value)}
         />
       </div>
@@ -269,7 +270,7 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
             value={(value as string) ?? ""}
             onChange={(e) => onChange(e.target.value)}
           >
-            <option value="">-- 選択 --</option>
+            <option value="">{l10n.t("-- Select --")}</option>
             {field.options?.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
@@ -296,7 +297,7 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
             <div key={i} className="fr-kv-row">
               <input
                 type="text"
-                placeholder="Key"
+                placeholder={l10n.t("Key")}
                 value={pair.key}
                 onChange={(e) => {
                   const next = [...pairs];
@@ -306,7 +307,7 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
               />
               <input
                 type="text"
-                placeholder="Value"
+                placeholder={l10n.t("Value")}
                 value={pair.value}
                 onChange={(e) => {
                   const next = [...pairs];
@@ -321,7 +322,7 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
                   const next = pairs.filter((_, j) => j !== i);
                   updatePairs(next.length ? next : [{ key: "", value: "" }]);
                 }}
-                aria-label="Remove"
+                aria-label={l10n.t("Remove")}
               >
                 ×
               </button>
@@ -332,7 +333,7 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
             className="fr-kv-add"
             onClick={() => updatePairs([...pairs, { key: "", value: "" }])}
           >
-            + Add
+            + {l10n.t("Add")}
           </button>
         </div>
       );
@@ -359,12 +360,12 @@ const TerminalOutput: React.FC<{ outputs: Record<string, unknown> }> = ({ output
       )}
       {stderr && (
         <div className="fr-output-terminal-stderr">
-          <div className="fr-output-terminal-stderr-label">stderr</div>
+          <div className="fr-output-terminal-stderr-label">{l10n.t("stderr")}</div>
           <pre className="fr-output-terminal-content">{stderr}</pre>
         </div>
       )}
       {!stdout && !stderr && (
-        <div className="fr-output-empty">出力なし / No output</div>
+        <div className="fr-output-empty">{l10n.t("No output")}</div>
       )}
     </div>
   );

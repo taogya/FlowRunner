@@ -1,5 +1,6 @@
 // Trace: DD-02-006001, DD-02-006002
 import React from "react";
+import * as l10n from "@vscode/l10n";
 
 interface NodeTypeItem {
   type: string;
@@ -23,6 +24,8 @@ const nodeTypeAbbrevs: Record<string, string> = {
   http: "H",
   aiPrompt: "AI",
   transform: "X",
+  tryCatch: "TC",
+  parallel: "P",
 };
 
 export const NodePalette: React.FC<NodePaletteProps> = ({ nodeTypes }) => {
@@ -49,7 +52,7 @@ export const NodePalette: React.FC<NodePaletteProps> = ({ nodeTypes }) => {
 
   return (
     <div data-testid="node-palette" className="fr-palette">
-      <div className="fr-palette-title">Nodes</div>
+      <div className="fr-palette-title">{l10n.t("Nodes")}</div>
       {Object.entries(grouped).map(([category, items]) => (
         <details key={category} open>
           <summary>{category}</summary>

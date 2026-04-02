@@ -2,7 +2,7 @@
   "name": "flowrunner",
   "displayName": "FlowRunner",
   "description": "%extension.description%",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "Taogya",
   "license": "BSD-3-Clause",
   "icon": "media/icon.png",
@@ -213,7 +213,7 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
-    "package": "npm ci && npm run compile && npm run build:webview && vsce package"
+    "package": "npm ci && npm run compile && npm run build:webview && npx vsce package"
   },
   "devDependencies": {
     "@types/d3-hierarchy": "^3.1.7",

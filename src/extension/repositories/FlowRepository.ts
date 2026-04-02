@@ -30,9 +30,9 @@ function sanitizeName(name: string): string {
     .slice(0, 60) || "flow";
 }
 
-// Build filename: sanitizedName_shortId.json
+// Build filename: sanitizedName_flowId.json (full flowId to avoid collisions)
 function buildFileName(name: string, flowId: string): string {
-  return `${sanitizeName(name)}_${flowId.slice(0, 8)}.json`;
+  return `${sanitizeName(name)}_${flowId}.json`;
 }
 
 export class FlowRepository implements IFlowRepository {
@@ -59,7 +59,6 @@ export class FlowRepository implements IFlowRepository {
 
   // Find the filename for a given flowId by scanning the directory
   private async findFlowFile(flowId: string): Promise<string | undefined> {
-    const shortId = flowId.slice(0, 8);
     const baseDir = this.getBaseDir();
     let entries: [string, number][];
     try {
@@ -67,11 +66,33 @@ export class FlowRepository implements IFlowRepository {
     } catch {
       return undefined;
     }
-    // Match format: *_shortId.json
-    const match = entries.find(([name]) =>
+    // Fast path: match full flowId suffix (current convention)
+    const fullMatch = entries.find(([name]) =>
+      name.endsWith(`_${flowId}.json`)
+    );
+    if (fullMatch) return fullMatch[0];
+
+    // Legacy path: match old shortId convention (first 8 chars)
+    const shortId = flowId.slice(0, 8);
+    const shortMatches = entries.filter(([name]) =>
       name.endsWith(`_${shortId}.json`)
     );
-    return match ? match[0] : undefined;
+    // Only use shortId match if exactly one file matches (avoid ambiguity)
+    if (shortMatches.length === 1) return shortMatches[0][0];
+
+    // Fallback: read file content to match exact flowId (handles non-standard filenames)
+    for (const [name, type] of entries) {
+      if (type !== 1 || !name.endsWith(".json")) continue;
+      try {
+        const uri = this.getFlowUri(name);
+        const data = await this.fs.readFile(uri);
+        const flow = JSON.parse(new TextDecoder().decode(data)) as { id?: string };
+        if (flow.id === flowId) return name;
+      } catch {
+        // skip unreadable files
+      }
+    }
+    return undefined;
   }
 
   // Trace: DD-03-003003
@@ -124,9 +145,14 @@ export class FlowRepository implements IFlowRepository {
     const flows: FlowDefinition[] = [];
     for (const [name] of entries) {
       if (!name.endsWith(".json")) continue;
-      const uri = this.getFlowUri(name);
-      const data = await this.fs.readFile(uri);
-      flows.push(JSON.parse(new TextDecoder().decode(data)) as FlowDefinition);
+      try {
+        const uri = this.getFlowUri(name);
+        const data = await this.fs.readFile(uri);
+        flows.push(JSON.parse(new TextDecoder().decode(data)) as FlowDefinition);
+      } catch {
+        // 個別ファイルのパースエラーをスキップし、他のフローの表示を妨げない
+        console.warn(`[FlowRepository] Failed to load: ${name}`);
+      }
     }
     flows.sort((a, b) => a.name.localeCompare(b.name));
     return flows.map((f) => ({

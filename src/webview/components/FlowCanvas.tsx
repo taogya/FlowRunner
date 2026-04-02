@@ -3,8 +3,9 @@ import React, { useState, useRef, useCallback, useMemo, useEffect } from "react"
 import { createPortal } from "react-dom";
 import { ReactFlow, MiniMap, Controls, Background, Handle, Position, useReactFlow } from "@xyflow/react";
 import type { Connection } from "@xyflow/react";
+import * as l10n from "@vscode/l10n";
 import type { PortDefinition } from "@shared/types/node.js";
-import type { NodeExecState } from "./FlowEditorApp.js";
+import type { NodeExecState, FlowNode } from "./FlowEditorApp.js";
 
 // Trace: DD-02-007004
 export interface ContextMenuState {
@@ -49,6 +50,8 @@ const nodeTypeAbbrevs: Record<string, string> = {
   http: "H",
   aiPrompt: "AI",
   transform: "X",
+  tryCatch: "TC",
+  parallel: "P",
 };
 
 // Trace: DD-02-007003
@@ -64,9 +67,9 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
 
   const showTooltip = useCallback((e: React.MouseEvent, port: PortDefinition, isOutput: boolean) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const lines = [`${port.label} (${port.id})`, `型: ${port.dataType}`];
+    const lines = [`${port.label} (${port.id})`, l10n.t("Type: {0}", port.dataType)];
     // Trace: REV-016 #7 — neutral tooltip without syntax-specific hint
-    if (isOutput) lines.push("接続先ノードの入力データ (input) になります");
+    if (isOutput) lines.push(l10n.t("Outputs to target node's input data"));
     setTooltip({ text: lines.join("\n"), x: rect.right + 8, y: rect.top });
   }, []);
   const hideTooltip = useCallback(() => setTooltip(null), []);
@@ -157,6 +160,8 @@ const nodeTypes = {
   http: CustomNodeComponent,
   aiPrompt: CustomNodeComponent,
   transform: CustomNodeComponent,
+  tryCatch: CustomNodeComponent,
+  parallel: CustomNodeComponent,
 };
 
 // Trace: DD-02-007001
@@ -171,6 +176,7 @@ interface FlowCanvasProps {
   onNodeDrop?: (nodeType: string, position: { x: number; y: number }) => void;
   onDeleteNode?: (nodeId: string) => void;
   onDeleteEdge?: (edgeId: string) => void;
+  onDeleteSelected?: () => void;
   onCopyNode?: (nodeId: string) => void;
   onCutNode?: (nodeId: string) => void;
   onPasteNode?: (clipboard: ClipboardNode, position: { x: number; y: number }) => void;
@@ -178,6 +184,11 @@ interface FlowCanvasProps {
   onOpenSettings?: (nodeId: string) => void;
   onAutoLayout?: () => void;
   showMiniMap?: boolean;
+  ghostPasteNodeCount?: number;
+  ghostPasteFirstType?: string;
+  ghostPasteFirstLabel?: string;
+  onGhostPasteConfirm?: (flowPosition: { x: number; y: number }) => void;
+  onGhostPasteCancel?: () => void;
 }
 
 // Trace: DD-02-007004
@@ -200,6 +211,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   onNodeDrop,
   onDeleteNode,
   onDeleteEdge,
+  onDeleteSelected,
   onCopyNode,
   onCutNode,
   onPasteNode,
@@ -207,9 +219,18 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   onOpenSettings,
   onAutoLayout,
   showMiniMap = false,
+  ghostPasteNodeCount = 0,
+  ghostPasteFirstType,
+  ghostPasteFirstLabel,
+  onGhostPasteConfirm,
+  onGhostPasteCancel,
 }) => {
   // Track highlighted edge ID via direct edge click for immediate update
   const [highlightedEdgeId, setHighlightedEdgeId] = useState<string | null>(null);
+
+  // Ghost paste overlay: track mouse position for placement indicator
+  const [ghostMousePos, setGhostMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isGhostPasteMode = ghostPasteNodeCount > 0;
 
   // Reset highlighted edge when execution starts
   useEffect(() => {
@@ -265,6 +286,16 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   // Ghost placement mode
   const [ghostClipboard, setGhostClipboard] = useState<ClipboardNode | null>(null);
   const ghostElRef = useRef<HTMLDivElement>(null);
+
+  // Ghost paste overlay handlers
+  const handleGhostMouseMove = useCallback((e: React.MouseEvent) => {
+    setGhostMousePos({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleGhostClick = useCallback((e: React.MouseEvent) => {
+    const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    onGhostPasteConfirm?.(flowPos);
+  }, [screenToFlowPosition, onGhostPasteConfirm]);
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(initialContextMenu);
@@ -335,13 +366,19 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const handleDelete = useCallback(() => {
     if (contextMenu.targetId) {
       if (contextMenu.targetType === "node") {
-        onDeleteNode?.(contextMenu.targetId);
+        // 選択ノードが複数ある場合は全選択ノードを削除
+        const selectedNodes = nodes.filter(n => (n as unknown as FlowNode & { selected?: boolean }).selected);
+        if (selectedNodes.length > 1 && selectedNodes.some(n => n.id === contextMenu.targetId)) {
+          onDeleteSelected?.();
+        } else {
+          onDeleteNode?.(contextMenu.targetId);
+        }
       } else if (contextMenu.targetType === "edge") {
         onDeleteEdge?.(contextMenu.targetId);
       }
     }
     closeContextMenu();
-  }, [contextMenu, onDeleteNode, onDeleteEdge, closeContextMenu]);
+  }, [contextMenu, nodes, onDeleteNode, onDeleteEdge, onDeleteSelected, closeContextMenu]);
 
   const handleOpenSettings = useCallback(() => {
     if (contextMenu.targetType === "node" && contextMenu.targetId) {
@@ -447,8 +484,9 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         maxZoom={2.0}
         fitView={true}
         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-        selectionOnDrag={true}
-        selectionKeyCode={null}
+        selectionOnDrag={false}
+        panOnDrag={true}
+        selectionKeyCode="Shift"
         multiSelectionKeyCode="Shift"
         deleteKeyCode={null}
         onNodesChange={onNodesChange}
@@ -476,38 +514,38 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
           {contextMenu.targetType === "node" && (
             <>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleCopy}>
-                Copy
+                {l10n.t("Copy")}
               </div>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleCut}>
-                Cut
+                {l10n.t("Cut")}
               </div>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleDelete}>
-                Delete
+                {l10n.t("Delete")}
               </div>
               <div className="fr-context-menu-separator" />
               <div role="menuitem" className="fr-context-menu-item" onClick={handleOpenSettings}>
-                Open Settings
+                {l10n.t("Open Settings")}
               </div>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleSelectAll}>
-                Select All
+                {l10n.t("Select All")}
               </div>
               <div className="fr-context-menu-separator" />
               <div role="menuitem" className="fr-context-menu-item" onClick={handleAutoLayout}>
-                Auto Layout
+                {l10n.t("Auto Layout")}
               </div>
             </>
           )}
           {contextMenu.targetType === "edge" && (
             <>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleDelete}>
-                Delete
+                {l10n.t("Delete")}
               </div>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleSelectAll}>
-                Select All
+                {l10n.t("Select All")}
               </div>
               <div className="fr-context-menu-separator" />
               <div role="menuitem" className="fr-context-menu-item" onClick={handleAutoLayout}>
-                Auto Layout
+                {l10n.t("Auto Layout")}
               </div>
             </>
           )}
@@ -518,18 +556,18 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 className={`fr-context-menu-item ${clipboardRef.current ? "" : "fr-context-menu-item--disabled"}`}
                 onClick={clipboardRef.current ? handlePaste : undefined}
               >
-                Paste
+                {l10n.t("Paste")}
               </div>
               <div role="menuitem" className="fr-context-menu-item" onClick={handleSelectAll}>
-                Select All
+                {l10n.t("Select All")}
               </div>
               <div className="fr-context-menu-separator" />
               <div role="menuitem" className="fr-context-menu-item" onClick={handleZoomReset}>
-                Zoom Reset
+                {l10n.t("Zoom Reset")}
               </div>
               <div className="fr-context-menu-separator" />
               <div role="menuitem" className="fr-context-menu-item" onClick={handleAutoLayout}>
-                Auto Layout
+                {l10n.t("Auto Layout")}
               </div>
             </>
           )}
@@ -549,6 +587,35 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
                 {(ghostClipboard.data.label as string) ?? ghostClipboard.type}
               </span>
             </div>
+          </div>
+        </div>
+      )}
+      {isGhostPasteMode && (
+        <div
+          className="fr-ghost-paste-overlay"
+          onMouseMove={handleGhostMouseMove}
+          onClick={handleGhostClick}
+        >
+          <div
+            className="fr-ghost-node"
+            style={{
+              left: ghostMousePos.x,
+              top: ghostMousePos.y,
+            }}
+          >
+            <div className={`fr-node fr-node--${ghostPasteFirstType ?? "command"}`}>
+              <div className="fr-node-header">
+                <span className="fr-node-type-badge">
+                  {nodeTypeAbbrevs[ghostPasteFirstType ?? "command"] ?? "?"}
+                </span>
+                <span className="fr-node-label">
+                  {ghostPasteFirstLabel ?? ghostPasteFirstType ?? "Node"}
+                </span>
+              </div>
+            </div>
+            {ghostPasteNodeCount > 1 && (
+              <span className="fr-ghost-paste-count">+{ghostPasteNodeCount - 1}</span>
+            )}
           </div>
         </div>
       )}

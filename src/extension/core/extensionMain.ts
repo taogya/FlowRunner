@@ -71,6 +71,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   // Phase 3: UI & Communication
+  const triggerService = new TriggerService(executionService, workspaceFolder);
   const flowTreeProvider = new FlowTreeProvider(flowService);
   vscode.window.registerTreeDataProvider(
     "flowrunner.flowList",
@@ -84,6 +85,7 @@ export function activate(context: vscode.ExtensionContext): void {
         executionService,
         debugService,
         nodeExecutorRegistry,
+        triggerService,
       ),
   );
 
@@ -119,10 +121,7 @@ export function activate(context: vscode.ExtensionContext): void {
   flowFileWatcher.onDidChange(() => flowTreeProvider.refresh());
   flowFileWatcher.onDidDelete(() => flowTreeProvider.refresh());
 
-  // Phase 6.5: TriggerService — トリガーによるフロー自動実行 (Trace: FEAT-00001-003007)
-  const triggerService = new TriggerService(executionService, workspaceFolder);
-
-  // ステータスバーアイテム
+  // Phase 6.5: Trigger commands & status bar (Trace: FEAT-00001-003007)
   const triggerStatusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     50,
@@ -168,6 +167,10 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       triggerService.activateTrigger(activeFlowId, config);
       updateTriggerStatusBar();
+      flowEditorManager.postMessageToFlow(activeFlowId, {
+        type: "trigger:statusChanged",
+        payload: { active: true },
+      });
       void vscode.window.showInformationMessage(
         l10n.t("Trigger activated for this flow."),
       );
@@ -186,6 +189,10 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       triggerService.deactivateTrigger(activeFlowId);
       updateTriggerStatusBar();
+      flowEditorManager.postMessageToFlow(activeFlowId, {
+        type: "trigger:statusChanged",
+        payload: { active: false },
+      });
       void vscode.window.showInformationMessage(
         l10n.t("Trigger deactivated for this flow."),
       );
@@ -195,8 +202,15 @@ export function activate(context: vscode.ExtensionContext): void {
   const triggerDeactivateAllCmd = vscode.commands.registerCommand(
     "flowrunner.deactivateAllTriggers",
     () => {
+      const activeTriggers = triggerService.getActiveTriggers();
       triggerService.deactivateAll();
       updateTriggerStatusBar();
+      for (const t of activeTriggers) {
+        flowEditorManager.postMessageToFlow(t.flowId, {
+          type: "trigger:statusChanged",
+          payload: { active: false },
+        });
+      }
       void vscode.window.showInformationMessage(
         l10n.t("All triggers deactivated."),
       );
