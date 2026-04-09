@@ -1,9 +1,15 @@
 // Trace: DD-01-005002, DD-01-005003, DD-01-005004, DD-01-005005, DD-01-005006
+import { EventEmitter } from "vscode";
 import type { IFlowService } from "@extension/interfaces/IFlowService.js";
 import type { IExecutionService } from "@extension/interfaces/IExecutionService.js";
 import type { IDebugService } from "@extension/interfaces/IDebugService.js";
+import type { IExecutionAnalyticsService } from "@extension/interfaces/IExecutionAnalyticsService.js";
+import type { IFlowDependencyService } from "@extension/interfaces/IFlowDependencyService.js";
+import type { IFlowValidationService } from "@extension/interfaces/IFlowValidationService.js";
 import type { INodeExecutorRegistry } from "@extension/interfaces/INodeExecutorRegistry.js";
 import type { ITriggerService, TriggerConfig } from "@extension/interfaces/ITriggerService.js";
+import { confirmFlowValidationIssues } from "@extension/services/flowValidationDialog.js";
+import { localizeNodeMetadata } from "@extension/services/nodeMetadataLocalization.js";
 import type { FlowRunnerMessage } from "@shared/types/messages.js";
 import type { FlowEvent } from "@shared/types/events.js";
 import type { DebugEvent } from "@shared/types/events.js";
@@ -39,6 +45,24 @@ function optionalArray(payload: Record<string, unknown>, key: string): Array<Rec
   return value as Array<Record<string, unknown>>;
 }
 
+// Trace: FEAT-00021 — WebView をまたいで共有するクリップボード
+type SharedClipboardPayload = {
+  nodes: Array<Record<string, unknown>>;
+  edges: Array<Record<string, unknown>>;
+};
+
+const sharedClipboardEmitter = new EventEmitter<SharedClipboardPayload | null>();
+let sharedClipboard: SharedClipboardPayload | null = null;
+
+function getSharedClipboard(): SharedClipboardPayload | null {
+  return sharedClipboard ? structuredClone(sharedClipboard) as SharedClipboardPayload : null;
+}
+
+function setSharedClipboard(payload: SharedClipboardPayload | null): void {
+  sharedClipboard = payload ? structuredClone(payload) as SharedClipboardPayload : null;
+  sharedClipboardEmitter.fire(getSharedClipboard());
+}
+
 export class MessageBroker {
   private readonly handlerMap: Map<string, MessageHandler>;
   private readonly eventDisposables: Disposable[] = [];
@@ -46,7 +70,11 @@ export class MessageBroker {
   private readonly executionService: IExecutionService;
   private readonly debugService: IDebugService;
   private readonly nodeExecutorRegistry: INodeExecutorRegistry;
+  private readonly executionAnalyticsService?: IExecutionAnalyticsService;
+  private readonly flowDependencyService?: IFlowDependencyService;
   private readonly triggerService?: ITriggerService;
+  private readonly flowValidationService?: IFlowValidationService;
+  private readonly openFlowEditor?: (targetFlowId: string, flowName?: string) => void;
 
   constructor(
     flowService: IFlowService,
@@ -54,12 +82,20 @@ export class MessageBroker {
     debugService: IDebugService,
     nodeExecutorRegistry: INodeExecutorRegistry,
     triggerService?: ITriggerService,
+    flowValidationService?: IFlowValidationService,
+    executionAnalyticsService?: IExecutionAnalyticsService,
+    flowDependencyService?: IFlowDependencyService,
+    openFlowEditor?: (targetFlowId: string, flowName?: string) => void,
   ) {
     this.flowService = flowService;
     this.executionService = executionService;
     this.debugService = debugService;
     this.nodeExecutorRegistry = nodeExecutorRegistry;
+    this.executionAnalyticsService = executionAnalyticsService;
+    this.flowDependencyService = flowDependencyService;
     this.triggerService = triggerService;
+    this.flowValidationService = flowValidationService;
+    this.openFlowEditor = openFlowEditor;
 
     // Trace: DD-01-005003
     this.handlerMap = new Map<string, MessageHandler>([
@@ -97,14 +133,56 @@ export class MessageBroker {
       }],
       ["flow:execute", async (payload) => {
         const flowId = requireString(payload, "flowId");
+        if (!(await this.canStartFlow(flowId, "execute"))) {
+          return;
+        }
         await this.executionService.executeFlow(flowId);
       }],
       ["flow:stop", async (payload) => {
         const flowId = requireString(payload, "flowId");
         this.executionService.stopFlow(flowId);
       }],
+      // Trace: FEAT-00021 — 共有クリップボードの保存と取得
+      ["clipboard:set", async (payload) => {
+        setSharedClipboard({
+          nodes: optionalArray(payload, "nodes"),
+          edges: optionalArray(payload, "edges"),
+        });
+      }],
+      ["clipboard:get", async () => ({
+        type: "clipboard:loaded",
+        payload: getSharedClipboard() ?? { nodes: [], edges: [] },
+      })],
+      ["history:analyticsLoad", async (payload) => {
+        const flowId = requireString(payload, "flowId");
+        const snapshot = this.executionAnalyticsService
+          ? await this.executionAnalyticsService.buildSnapshot(flowId)
+          : null;
+        return {
+          type: "history:analyticsLoaded",
+          payload: { flowId, snapshot },
+        };
+      }],
+      ["dependency:load", async (payload) => {
+        const flowId = requireString(payload, "flowId");
+        const snapshot = this.flowDependencyService
+          ? await this.flowDependencyService.buildSnapshot(flowId)
+          : null;
+        return {
+          type: "dependency:loaded",
+          payload: { flowId, snapshot },
+        };
+      }],
+      ["dependency:openFlow", async (payload) => {
+        const targetFlowId = requireString(payload, "targetFlowId");
+        const targetFlow = await this.flowService.getFlow(targetFlowId);
+        this.openFlowEditor?.(targetFlowId, targetFlow.name);
+      }],
       ["debug:start", async (payload) => {
         const flowId = requireString(payload, "flowId");
+        if (!(await this.canStartFlow(flowId, "debug"))) {
+          return;
+        }
         await this.debugService.startDebug(flowId);
       }],
       ["debug:step", async () => {
@@ -115,15 +193,8 @@ export class MessageBroker {
       }],
       ["node:getTypes", async () => {
         const executors = this.nodeExecutorRegistry.getAll();
-        const metadata = await Promise.all(
-          executors.map(async (e) => {
-            // Trace: BD-03-006003, DD-03-002003 — use optional interface method
-            if (e.getMetadataAsync) {
-              return e.getMetadataAsync();
-            }
-            return e.getMetadata();
-          }),
-        );
+        // Keep palette/canvas bootstrap deterministic; dynamic options load via node:getMetadata.
+        const metadata = executors.map((executor) => localizeNodeMetadata(executor.getMetadata()));
         return { type: "node:typesLoaded", payload: { nodeTypes: metadata } };
       }],
       // Trace: REV-016 #12 — dynamic metadata for a specific node type with current settings
@@ -138,7 +209,10 @@ export class MessageBroker {
         } else {
           meta = executor.getMetadata();
         }
-        return { type: "node:metadataLoaded", payload: { nodeType, metadata: meta } };
+        return {
+          type: "node:metadataLoaded",
+          payload: { nodeType, metadata: localizeNodeMetadata(meta) },
+        };
       }],
     ]);
 
@@ -174,6 +248,17 @@ export class MessageBroker {
         return { type: "trigger:statusChanged", payload: { active } };
       });
     }
+  }
+
+  private async canStartFlow(
+    flowId: string,
+    mode: "execute" | "debug",
+  ): Promise<boolean> {
+    if (!this.flowValidationService) {
+      return true;
+    }
+    const issues = await this.flowValidationService.validateFlow(flowId, mode);
+    return confirmFlowValidationIssues(issues, mode);
   }
 
   // Trace: DD-01-005004
@@ -227,10 +312,26 @@ export class MessageBroker {
     );
     this.eventDisposables.push(debugEventDisposable);
 
+    const flowIndexDisposable = this.flowService.onDidChangeFlows.event(() => {
+      void panel.webview.postMessage({ type: "flow:indexChanged", payload: {} });
+    });
+    this.eventDisposables.push(flowIndexDisposable);
+
+    // Trace: FEAT-00021 — どのエディタから更新しても他の WebView に即時反映
+    const clipboardDisposable = sharedClipboardEmitter.event((payload) => {
+      void panel.webview.postMessage({
+        type: "clipboard:loaded",
+        payload: payload ?? { nodes: [], edges: [] },
+      });
+    });
+    this.eventDisposables.push(clipboardDisposable);
+
     return {
       dispose: () => {
         flowEventDisposable.dispose();
         debugEventDisposable.dispose();
+        flowIndexDisposable.dispose();
+        clipboardDisposable.dispose();
       },
     };
   }

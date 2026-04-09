@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import * as l10n from "@vscode/l10n";
 import type { INodeTypeMetadata, SettingFieldDef } from "@shared/types/node.js";
 import type { NodeResult } from "@shared/types/execution.js";
-import type { NodeSettings } from "@shared/types/flow.js";
+import type { NodeSettings, PortDataMap } from "@shared/types/flow.js";
 
 type KeyValuePair = { key: string; value: string };
 
@@ -19,6 +19,7 @@ interface SelectedNode {
 interface PropertyPanelProps {
   selectedNode: SelectedNode | null;
   executionOutput: NodeResult | null;
+  inputPreview?: { nodeId: string; inputs: PortDataMap } | null;
   nodeMetadata: INodeTypeMetadata | null;
   onSettingsChange: (nodeId: string, settings: NodeSettings) => void;
   onLabelChange?: (nodeId: string, label: string) => void;
@@ -30,13 +31,24 @@ interface PropertyPanelProps {
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   selectedNode,
   executionOutput,
+  inputPreview,
   nodeMetadata,
   onSettingsChange,
   onLabelChange,
   onEnabledChange,
   nodeType,
 }) => {
-  const [activeTab, setActiveTab] = useState<"settings" | "output">("settings");
+  const [isSettingsExpanded, setIsSettingsExpanded] = useState(true);
+  const [isOutputExpanded, setIsOutputExpanded] = useState(true);
+
+  useEffect(() => {
+    if (!selectedNode) {
+      return;
+    }
+
+    setIsSettingsExpanded(true);
+    setIsOutputExpanded(true);
+  }, [selectedNode?.id]);
 
   if (!selectedNode) {
     return (
@@ -50,52 +62,76 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
   return (
     <div data-testid="property-panel" className="fr-panel">
-      <div role="tablist" className="fr-panel-tabs">
-        <button
-          role="tab"
-          className={`fr-panel-tab ${activeTab === "settings" ? "fr-panel-tab--active" : ""}`}
-          aria-selected={activeTab === "settings"}
-          onClick={() => setActiveTab("settings")}
-        >
-          {l10n.t("Settings")}
-        </button>
-        <button
-          role="tab"
-          className={`fr-panel-tab ${activeTab === "output" ? "fr-panel-tab--active" : ""}`}
-          aria-selected={activeTab === "output"}
-          onClick={() => setActiveTab("output")}
-        >
-          {l10n.t("Output")}
-        </button>
-      </div>
       <div className="fr-panel-content">
-        {activeTab === "settings" && nodeMetadata && (
-          <>
-            {selectedNode.type !== "trigger" && selectedNode.type !== "comment" && (
-              <div className="fr-setting-field" style={{ marginBottom: 8 }}>
-                <label className="fr-setting-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedNode.enabled}
-                    onChange={(e) => onEnabledChange?.(selectedNode.id, e.target.checked)}
+        <section className="fr-panel-section" aria-label={l10n.t("Settings")}>
+          <div className="fr-panel-section-header">
+            <button
+              type="button"
+              className="fr-panel-section-toggle"
+              aria-expanded={isSettingsExpanded}
+              aria-label={isSettingsExpanded ? l10n.t("Collapse") : l10n.t("Expand")}
+              onClick={() => setIsSettingsExpanded((prev) => !prev)}
+            >
+              <span className={`fr-panel-section-chevron ${isSettingsExpanded ? "fr-panel-section-chevron--expanded" : ""}`}>
+                ▾
+              </span>
+              <span className="fr-panel-section-title">{l10n.t("Settings")}</span>
+            </button>
+          </div>
+          {!isSettingsExpanded ? null : (
+            <div className="fr-panel-section-body">
+              {nodeMetadata && (
+                <>
+                  {selectedNode.type !== "trigger" && selectedNode.type !== "comment" && (
+                    <div className="fr-setting-field" style={{ marginBottom: 8 }}>
+                      <label className="fr-setting-label" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={selectedNode.enabled}
+                          onChange={(e) => onEnabledChange?.(selectedNode.id, e.target.checked)}
+                        />
+                        {l10n.t("Enabled")}
+                      </label>
+                    </div>
+                  )}
+                  <SettingsTab
+                    nodeId={selectedNode.id}
+                    label={selectedNode.label}
+                    settings={selectedNode.settings}
+                    schema={nodeMetadata.settingsSchema}
+                    onSettingsChange={onSettingsChange}
+                    onLabelChange={onLabelChange}
                   />
-                  {l10n.t("Enabled")}
-                </label>
-              </div>
-            )}
-            <SettingsTab
-              nodeId={selectedNode.id}
-              label={selectedNode.label}
-              settings={selectedNode.settings}
-              schema={nodeMetadata.settingsSchema}
-              onSettingsChange={onSettingsChange}
-              onLabelChange={onLabelChange}
-            />
-          </>
-        )}
-        {activeTab === "output" && (
-          <OutputTab executionOutput={executionOutput} nodeType={nodeType ?? selectedNode?.type ?? "unknown"} />
-        )}
+                </>
+              )}
+            </div>
+          )}
+        </section>
+        <section className="fr-panel-section" aria-label={l10n.t("Output")}>
+          <div className="fr-panel-section-header">
+            <button
+              type="button"
+              className="fr-panel-section-toggle"
+              aria-expanded={isOutputExpanded}
+              aria-label={isOutputExpanded ? l10n.t("Collapse") : l10n.t("Expand")}
+              onClick={() => setIsOutputExpanded((prev) => !prev)}
+            >
+              <span className={`fr-panel-section-chevron ${isOutputExpanded ? "fr-panel-section-chevron--expanded" : ""}`}>
+                ▾
+              </span>
+              <span className="fr-panel-section-title">{l10n.t("Output")}</span>
+            </button>
+          </div>
+          {!isOutputExpanded ? null : (
+            <div className="fr-panel-section-body">
+              <OutputTab
+                executionOutput={executionOutput}
+                inputPreview={inputPreview}
+                nodeType={nodeType ?? selectedNode?.type ?? "unknown"}
+              />
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
@@ -346,7 +382,16 @@ const SettingsField: React.FC<SettingsFieldProps> = ({
 // Trace: DD-02-008003
 interface OutputTabProps {
   executionOutput: NodeResult | null;
+  inputPreview?: { nodeId: string; inputs: PortDataMap } | null;
   nodeType: string;
+}
+
+function formatStructuredData(value: unknown): string {
+  try {
+    return JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    return String(value ?? "");
+  }
 }
 
 // Trace: DD-02-008003 — ターミナル風出力（command ノード用）
@@ -431,45 +476,68 @@ const TextOutput: React.FC<{ outputs: Record<string, unknown> }> = ({ outputs })
 // Trace: DD-02-008003 — 条件分岐出力
 const ConditionOutput: React.FC<{ outputs: Record<string, unknown> }> = ({ outputs }) => {
   const branch = "true" in outputs ? "true" : "false" in outputs ? "false" : null;
+  const branchLabel = branch === "true"
+    ? l10n.t("True")
+    : branch === "false"
+      ? l10n.t("False")
+      : l10n.t("N/A");
   return (
     <div className="fr-output-result">
       <div className="fr-output-condition-badge" data-branch={branch}>
-        Branch: <strong>{branch ?? "N/A"}</strong>
+        {l10n.t("Branch: {0}", branchLabel)}
       </div>
       <pre className="fr-output-pre">{JSON.stringify(outputs, null, 2)}</pre>
     </div>
   );
 };
 
-const OutputTab: React.FC<OutputTabProps> = ({ executionOutput, nodeType }) => {
-  if (!executionOutput) {
-    return <div className="fr-output-empty">ノードは未実行です / Not executed</div>;
+const OutputTab: React.FC<OutputTabProps> = ({ executionOutput, inputPreview, nodeType }) => {
+  if (!executionOutput && !inputPreview) {
+    return <div className="fr-output-empty">{l10n.t("Not executed")}</div>;
   }
 
-  if (executionOutput.status === "error") {
-    return (
-      <div className="fr-output-error">
-        {executionOutput.error?.message ?? "Unknown error"}
-      </div>
-    );
-  }
+  const outputContent = (() => {
+    if (!executionOutput) {
+      return <div className="fr-output-empty">{l10n.t("No output")}</div>;
+    }
 
-  const outputs = executionOutput.outputs as Record<string, unknown>;
+    if (executionOutput.status === "error") {
+      return (
+        <div className="fr-output-error">
+          {executionOutput.error?.message ?? l10n.t("Unknown error")}
+        </div>
+      );
+    }
 
-  switch (nodeType) {
-    case "command":
-      return <TerminalOutput outputs={outputs} />;
-    case "aiPrompt":
-      return <MarkdownOutput outputs={outputs} />;
-    case "http":
-    case "transform":
-      return <JsonOutput outputs={outputs} />;
-    case "condition":
-      return <ConditionOutput outputs={outputs} />;
-    case "trigger":
-    case "comment":
-      return <div className="fr-output-empty">出力なし / No output</div>;
-    default:
-      return <TextOutput outputs={outputs} />;
-  }
+    const outputs = executionOutput.outputs as Record<string, unknown>;
+
+    switch (nodeType) {
+      case "command":
+        return <TerminalOutput outputs={outputs} />;
+      case "aiPrompt":
+        return <MarkdownOutput outputs={outputs} />;
+      case "http":
+      case "transform":
+        return <JsonOutput outputs={outputs} />;
+      case "condition":
+        return <ConditionOutput outputs={outputs} />;
+      case "trigger":
+      case "comment":
+        return <div className="fr-output-empty">{l10n.t("No output")}</div>;
+      default:
+        return <TextOutput outputs={outputs} />;
+    }
+  })();
+
+  return (
+    <>
+      {inputPreview && (
+        <div className="fr-output-result">
+          <strong>{l10n.t("Input preview")}</strong>
+          <pre className="fr-output-pre">{formatStructuredData(inputPreview.inputs)}</pre>
+        </div>
+      )}
+      {outputContent}
+    </>
+  );
 };

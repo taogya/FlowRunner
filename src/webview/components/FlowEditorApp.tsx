@@ -1,16 +1,33 @@
 // Trace: DD-02-004001, DD-02-004002, DD-02-004003
-import React, { useEffect, useReducer, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useReducer, useState, useCallback, useMemo, useRef } from "react";
 import { ReactFlowProvider, applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 import type { NodeChange, EdgeChange, Connection, Node, Edge } from "@xyflow/react";
 import { messageClient } from "../services/MessageClient.js";
 import { FlowCanvas } from "./FlowCanvas.js";
 import { Toolbar } from "./Toolbar.js";
 import { PropertyPanel } from "./PropertyPanel.js";
+import { LatestExecutionSummary } from "./LatestExecutionSummary.js";
+import { ExecutionAnalyticsPanel } from "./ExecutionAnalyticsPanel.js";
+import { FlowDependencyPanel } from "./FlowDependencyPanel.js";
 import { NodePalette } from "./NodePalette.js";
 import { useUndoRedo } from "../hooks/useUndoRedo.js";
 import { DagreLayoutEngine } from "../services/DagreLayoutEngine.js";
-import { getSelectedNodes, getInternalEdges, createRemappedNodes, remapEdges } from "../services/clipboardHelpers.js";
+import {
+  getSelectedNodes,
+  getInternalEdges,
+  createRemappedNodes,
+  remapEdges,
+  placeNodesAroundCenter,
+} from "../services/clipboardHelpers.js";
 import { filterExistingEdgesForSameTarget } from "../services/connectionHelpers.js";
+import {
+  appendDebugExecutionSummaryItems,
+  createExecutionSummaryItem,
+  type LatestExecutionSummaryItem,
+} from "../services/executionSummary.js";
+import type { DebugPausedInputPreview } from "@shared/types/events.js";
+import type { ExecutionAnalyticsSnapshot } from "@shared/types/analytics.js";
+import type { FlowDependencySnapshot } from "@shared/types/dependencies.js";
 import type { INodeTypeMetadata } from "@shared/types/node.js";
 import type { NodeResult } from "@shared/types/execution.js";
 import type { NodeSettings } from "@shared/types/flow.js";
@@ -33,6 +50,7 @@ export interface FlowNode {
   type: string;
   position: { x: number; y: number };
   data: Record<string, unknown>;
+  selected?: boolean;
 }
 
 export interface FlowEdge {
@@ -41,6 +59,7 @@ export interface FlowEdge {
   target: string;
   sourceHandle?: string;
   targetHandle?: string;
+  selected?: boolean;
 }
 
 // Trace: DD-02-004002 — FlowEditorAction
@@ -50,6 +69,8 @@ export type FlowEditorAction =
   | { type: "EDGES_CHANGED"; edges: FlowEdge[] }
   | { type: "NODE_SELECTED"; nodeId: string | null }
   | { type: "NODE_EXEC_STATE"; nodeId: string; state: NodeExecState }
+  | { type: "EXECUTION_STATE_SNAPSHOT"; executionState: Map<string, NodeExecState> }
+  | { type: "EXECUTION_STATE_RESET" }
   | { type: "DEBUG_MODE"; active: boolean }
   | { type: "FLOW_SAVED" };
 
@@ -87,6 +108,10 @@ export function flowEditorReducer(
       newMap.set(action.nodeId, action.state);
       return { ...state, executionState: newMap };
     }
+    case "EXECUTION_STATE_SNAPSHOT":
+      return { ...state, executionState: new Map(action.executionState) };
+    case "EXECUTION_STATE_RESET":
+      return { ...state, executionState: new Map() };
     case "DEBUG_MODE":
       return { ...state, isDebugMode: action.active };
     case "FLOW_SAVED":
@@ -98,8 +123,20 @@ export function flowEditorReducer(
 
 export const FlowEditorApp: React.FC = () => {
   const [state, dispatch] = useReducer(flowEditorReducer, initialState);
+  const currentFlowIdRef = useRef<string | null>(null);
+  const pendingPasteFromClipboardRef = useRef(false);
   const [nodeTypesList, setNodeTypesList] = useState<INodeTypeMetadata[]>([]);
   const [executionResults, setExecutionResults] = useState<Map<string, NodeResult>>(new Map());
+  const [latestExecutionSummary, setLatestExecutionSummary] = useState<
+    LatestExecutionSummaryItem[]
+  >([]);
+  const [executionAnalytics, setExecutionAnalytics] = useState<ExecutionAnalyticsSnapshot | null>(null);
+  const [isAnalyticsLoading, setIsAnalyticsLoading] = useState(false);
+  const [flowDependencies, setFlowDependencies] = useState<FlowDependencySnapshot | null>(null);
+  const [isDependencyLoading, setIsDependencyLoading] = useState(false);
+  const [focusedSummaryNodeId, setFocusedSummaryNodeId] = useState<string | null>(null);
+  const [currentDebugNodeId, setCurrentDebugNodeId] = useState<string | null>(null);
+  const [pausedInputPreview, setPausedInputPreview] = useState<DebugPausedInputPreview | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
   const [rightPanelWidth, setRightPanelWidth] = useState(300);
@@ -108,6 +145,7 @@ export const FlowEditorApp: React.FC = () => {
 
   // Trace: REV-016 #10 — clipboard for multi-node copy/paste
   const [clipboard, setClipboard] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] } | null>(null);
+  const [nodeClipboard, setNodeClipboard] = useState<{ type: string; data: Record<string, unknown> } | null>(null);
 
   // Ghost paste mode: nodes follow cursor until user clicks to place
   const [ghostPaste, setGhostPaste] = useState<{ nodes: FlowNode[]; edges: FlowEdge[] } | null>(null);
@@ -166,6 +204,30 @@ export const FlowEditorApp: React.FC = () => {
     return executionResults.get(state.selectedNodeId) ?? null;
   }, [state.selectedNodeId, executionResults]);
 
+  const selectedNodeInputPreview = useMemo(() => {
+    if (!state.selectedNodeId) {
+      return null;
+    }
+    if (executionResults.has(state.selectedNodeId)) {
+      return null;
+    }
+    if (!pausedInputPreview || pausedInputPreview.nodeId !== state.selectedNodeId) {
+      return null;
+    }
+    return pausedInputPreview;
+  }, [state.selectedNodeId, executionResults, pausedInputPreview]);
+
+  const currentDebugNodeLabel = useMemo(() => {
+    if (!currentDebugNodeId) {
+      return null;
+    }
+    const debugNode = state.nodes.find((node) => node.id === currentDebugNodeId);
+    if (!debugNode) {
+      return null;
+    }
+    return (debugNode.data.label as string) ?? debugNode.type;
+  }, [currentDebugNodeId, state.nodes]);
+
   const nodePaletteItems = useMemo(() => {
     return nodeTypesList.map(m => ({
       type: m.nodeType,
@@ -195,6 +257,56 @@ export const FlowEditorApp: React.FC = () => {
     messageClient.send("flow:load", {});
     messageClient.send("node:getTypes", {});
     messageClient.send("trigger:getStatus", {});
+    // Trace: FEAT-00021 — エディタ起動時に共有クリップボードを同期
+    messageClient.send("clipboard:get", {});
+  }, []);
+
+  // Trace: FEAT-00021 — 単一ノード貼り付けと複数ノード貼り付けで同じ共有ソースを使う
+  const applySharedClipboard = useCallback((nextClipboard: { nodes: FlowNode[]; edges: FlowEdge[] } | null) => {
+    if (!nextClipboard || nextClipboard.nodes.length === 0) {
+      setClipboard(null);
+      setNodeClipboard(null);
+      return;
+    }
+
+    const clonedClipboard = structuredClone(nextClipboard) as { nodes: FlowNode[]; edges: FlowEdge[] };
+    setClipboard(clonedClipboard);
+    if (clonedClipboard.nodes.length === 1) {
+      const [singleNode] = clonedClipboard.nodes;
+      setNodeClipboard({
+        type: singleNode.type,
+        data: structuredClone(singleNode.data),
+      });
+      return;
+    }
+
+    setNodeClipboard(null);
+  }, []);
+
+  const enterGhostPasteFromClipboard = useCallback((selectionClipboard: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
+    if (selectionClipboard.nodes.length === 0) {
+      return;
+    }
+
+    const { newNodes, idMap } = createRemappedNodes(selectionClipboard.nodes, 0, () => crypto.randomUUID());
+    const newEdges = remapEdges(selectionClipboard.edges, idMap).map((edge, index) => ({
+      ...edge,
+      id: `e-${idMap.get(selectionClipboard.edges[index].source)}-${idMap.get(selectionClipboard.edges[index].target)}-${Date.now()}`,
+    }));
+    setGhostPaste({ nodes: newNodes as FlowNode[], edges: newEdges });
+  }, []);
+
+  const requestExecutionAnalytics = useCallback(() => {
+    setIsAnalyticsLoading(true);
+    messageClient.send("history:analyticsLoad", {});
+  }, []);
+
+  const requestFlowDependencies = useCallback(() => {
+    if (!currentFlowIdRef.current) {
+      return;
+    }
+    setIsDependencyLoading(true);
+    messageClient.send("dependency:load", {});
   }, []);
 
   // Trace: DD-02-004003 — メッセージハンドリング
@@ -205,6 +317,12 @@ export const FlowEditorApp: React.FC = () => {
           case "flow:loaded": {
             // Trace: DD-02-004003 — NodeInstance/EdgeInstance → FlowNode/FlowEdge 変換
             const flow = msg.payload.flow as Record<string, unknown> | undefined;
+            const loadedFlowId =
+              typeof flow?.id === "string"
+                ? flow.id
+                : typeof msg.payload.flowId === "string"
+                  ? msg.payload.flowId
+                  : null;
             const rawNodes = ((flow?.nodes ?? msg.payload.nodes) ?? []) as Record<string, unknown>[];
             const rawEdges = ((flow?.edges ?? msg.payload.edges) ?? []) as Record<string, unknown>[];
             const nodes: FlowNode[] = rawNodes.map((n: Record<string, unknown>) => ({
@@ -220,7 +338,21 @@ export const FlowEditorApp: React.FC = () => {
               sourceHandle: e.sourceHandle ?? e.sourcePortId,
               targetHandle: e.targetHandle ?? e.targetPortId,
             }));
+            setExecutionResults(new Map());
+            setLatestExecutionSummary([]);
+            setExecutionAnalytics(null);
+            setIsAnalyticsLoading(false);
+            setFlowDependencies(null);
+            setIsDependencyLoading(false);
+            setFocusedSummaryNodeId(null);
+            setCurrentDebugNodeId(null);
+            setPausedInputPreview(null);
+            currentFlowIdRef.current = loadedFlowId;
             dispatch({ type: "FLOW_LOADED", nodes, edges });
+            if (loadedFlowId) {
+              requestExecutionAnalytics();
+              requestFlowDependencies();
+            }
             break;
           }
           case "execution:nodeStarted":
@@ -242,6 +374,13 @@ export const FlowEditorApp: React.FC = () => {
                 next.set(msg.payload.nodeId as string, msg.payload.result as NodeResult);
                 return next;
               });
+              setLatestExecutionSummary((prev) => [
+                ...prev,
+                createExecutionSummaryItem(
+                  msg.payload.result as NodeResult,
+                  prev.length + 1,
+                ),
+              ]);
             }
             break;
           case "execution:nodeError":
@@ -256,28 +395,111 @@ export const FlowEditorApp: React.FC = () => {
                 next.set(msg.payload.nodeId as string, msg.payload.result as NodeResult);
                 return next;
               });
+              setLatestExecutionSummary((prev) => [
+                ...prev,
+                createExecutionSummaryItem(
+                  msg.payload.result as NodeResult,
+                  prev.length + 1,
+                ),
+              ]);
             }
             break;
           case "execution:flowCompleted":
+            if (currentFlowIdRef.current) {
+              requestExecutionAnalytics();
+            }
             break;
           case "debug:paused": {
             // Trace: DD-02-004002 — update node execution states from intermediateResults
-            const results = msg.payload.intermediateResults as Record<string, { status: string }> | undefined;
+            const results = msg.payload.intermediateResults as Record<string, NodeResult> | undefined;
+            const nextExecutionState = new Map<string, NodeExecState>();
             if (results) {
+              const nextResults = new Map(Object.entries(results) as Array<[string, NodeResult]>);
+              setExecutionResults((previousResults) => {
+                setLatestExecutionSummary((previousItems) =>
+                  appendDebugExecutionSummaryItems(
+                    previousResults,
+                    nextResults,
+                    previousItems,
+                  ),
+                );
+                return nextResults;
+              });
               for (const [nid, result] of Object.entries(results)) {
                 const execState: NodeExecState = result.status === "success" ? "completed" : result.status === "error" ? "error" : "idle";
-                dispatch({ type: "NODE_EXEC_STATE", nodeId: nid, state: execState });
+                nextExecutionState.set(nid, execState);
               }
+            } else {
+              setExecutionResults(new Map());
             }
             // Highlight the next node to be executed, or exit debug mode if completed
             const nextId = msg.payload.nextNodeId as string | undefined;
+            setPausedInputPreview(
+              (msg.payload.pausedInputPreview as DebugPausedInputPreview | undefined) ?? null,
+            );
             if (nextId) {
-              dispatch({ type: "NODE_EXEC_STATE", nodeId: nextId, state: "running" });
+              nextExecutionState.set(nextId, "running");
+            }
+            dispatch({ type: "EXECUTION_STATE_SNAPSHOT", executionState: nextExecutionState });
+            setCurrentDebugNodeId(nextId ?? null);
+            if (nextId) {
               dispatch({ type: "NODE_SELECTED", nodeId: nextId });
               dispatch({ type: "DEBUG_MODE", active: true });
             } else {
               // Debug session completed — exit debug mode
               dispatch({ type: "DEBUG_MODE", active: false });
+              if (currentFlowIdRef.current) {
+                requestExecutionAnalytics();
+              }
+            }
+            break;
+          }
+          case "history:analyticsLoaded": {
+            const payloadFlowId =
+              typeof msg.payload.flowId === "string" ? msg.payload.flowId : null;
+            if (payloadFlowId !== currentFlowIdRef.current) {
+              break;
+            }
+            setExecutionAnalytics(
+              (msg.payload.snapshot as ExecutionAnalyticsSnapshot | null | undefined) ?? null,
+            );
+            setIsAnalyticsLoading(false);
+            break;
+          }
+          case "dependency:loaded": {
+            const payloadFlowId =
+              typeof msg.payload.flowId === "string" ? msg.payload.flowId : null;
+            if (payloadFlowId !== currentFlowIdRef.current) {
+              break;
+            }
+            setFlowDependencies(
+              (msg.payload.snapshot as FlowDependencySnapshot | null | undefined) ?? null,
+            );
+            setIsDependencyLoading(false);
+            break;
+          }
+          case "flow:indexChanged":
+            if (currentFlowIdRef.current) {
+              requestFlowDependencies();
+            }
+            break;
+          // Trace: FEAT-00021 — 他フロー由来の clipboard:loaded でも貼り付け可能にする
+          case "clipboard:loaded": {
+            const rawNodes = Array.isArray(msg.payload.nodes) ? msg.payload.nodes : [];
+            const rawEdges = Array.isArray(msg.payload.edges) ? msg.payload.edges : [];
+            const sharedClipboard = rawNodes.length > 0
+              ? {
+                  nodes: rawNodes as FlowNode[],
+                  edges: rawEdges as FlowEdge[],
+                }
+              : null;
+
+            applySharedClipboard(sharedClipboard);
+            if (pendingPasteFromClipboardRef.current) {
+              pendingPasteFromClipboardRef.current = false;
+              if (sharedClipboard) {
+                enterGhostPasteFromClipboard(sharedClipboard);
+              }
             }
             break;
           }
@@ -295,10 +517,18 @@ export const FlowEditorApp: React.FC = () => {
       },
     );
     return () => subscription.dispose();
-  }, []);
+  }, [applySharedClipboard, enterGhostPasteFromClipboard, requestExecutionAnalytics, requestFlowDependencies]);
 
   // Trace: BD-02-004003 — Toolbar callbacks
   const handleExecute = useCallback(() => {
+    setExecutionResults(new Map());
+    setLatestExecutionSummary([]);
+    setExecutionAnalytics(null);
+    setIsAnalyticsLoading(false);
+    setFocusedSummaryNodeId(null);
+    setCurrentDebugNodeId(null);
+    setPausedInputPreview(null);
+    dispatch({ type: "EXECUTION_STATE_RESET" });
     // Save before execute to ensure the latest flow is used
     if (state.isDirty) {
       messageClient.send("flow:save", { nodes: state.nodes, edges: state.edges });
@@ -329,6 +559,14 @@ export const FlowEditorApp: React.FC = () => {
   }, [state.isDebugMode]);
 
   const handleDebugStart = useCallback(() => {
+    setExecutionResults(new Map());
+    setLatestExecutionSummary([]);
+    setExecutionAnalytics(null);
+    setIsAnalyticsLoading(false);
+    setFocusedSummaryNodeId(null);
+    setCurrentDebugNodeId(null);
+    setPausedInputPreview(null);
+    dispatch({ type: "EXECUTION_STATE_RESET" });
     // Save before debug to ensure the latest flow is used
     if (state.isDirty) {
       messageClient.send("flow:save", { nodes: state.nodes, edges: state.edges });
@@ -345,6 +583,14 @@ export const FlowEditorApp: React.FC = () => {
     messageClient.send("flow:save", { nodes: state.nodes, edges: state.edges });
     dispatch({ type: "FLOW_SAVED" });
   }, [state.nodes, state.edges]);
+
+  const handleDependencyRefresh = useCallback(() => {
+    requestFlowDependencies();
+  }, [requestFlowDependencies]);
+
+  const handleDependencyOpen = useCallback((targetFlowId: string) => {
+    messageClient.send("dependency:openFlow", { targetFlowId });
+  }, []);
 
   // Auto-save: debounce 3s after changes
   useEffect(() => {
@@ -469,12 +715,20 @@ export const FlowEditorApp: React.FC = () => {
     dispatch({ type: "NODES_CHANGED", nodes: selected as FlowNode[] });
   }, [state.nodes]);
 
-  // Trace: REV-016 #10 — deselect all nodes
+  // Trace: FEAT-00021 — 右クリックコピー/カットも共有クリップボードへ集約
+  const handleCanvasClipboardChange = useCallback((selectionClipboard: { nodes: FlowNode[]; edges: [] }) => {
+    applySharedClipboard(selectionClipboard);
+    messageClient.send("clipboard:set", selectionClipboard);
+  }, [applySharedClipboard]);
+
+  // Trace: REV-016 #10 — deselect all nodes / edges
   const handleDeselectAll = useCallback(() => {
     const deselected = state.nodes.map(n => ({ ...n, selected: false }));
+    const deselectedEdges = state.edges.map(e => ({ ...e, selected: false }));
     dispatch({ type: "NODES_CHANGED", nodes: deselected as FlowNode[] });
+    dispatch({ type: "EDGES_CHANGED", edges: deselectedEdges as FlowEdge[] });
     dispatch({ type: "NODE_SELECTED", nodeId: null });
-  }, [state.nodes]);
+  }, [state.nodes, state.edges]);
 
   // Trace: REV-016 #10 — copy selected nodes + internal edges to clipboard
   const handleCopySelected = useCallback(() => {
@@ -482,8 +736,10 @@ export const FlowEditorApp: React.FC = () => {
     if (selectedNodes.length === 0) return;
     const selectedIds = new Set(selectedNodes.map(n => n.id));
     const internalEdges = getInternalEdges(state.edges, selectedIds);
-    setClipboard({ nodes: selectedNodes, edges: internalEdges });
-  }, [state.nodes, state.edges]);
+    const nextClipboard = { nodes: selectedNodes, edges: internalEdges };
+    applySharedClipboard(nextClipboard);
+    messageClient.send("clipboard:set", nextClipboard);
+  }, [applySharedClipboard, state.nodes, state.edges]);
 
   // Trace: REV-016 #10 — cut selected nodes (copy + delete)
   const handleCutSelected = useCallback(() => {
@@ -491,38 +747,27 @@ export const FlowEditorApp: React.FC = () => {
     if (selectedNodes.length === 0) return;
     const selectedIds = new Set(selectedNodes.map(n => n.id));
     const internalEdges = getInternalEdges(state.edges, selectedIds);
-    setClipboard({ nodes: selectedNodes, edges: internalEdges });
+    const nextClipboard = { nodes: selectedNodes, edges: internalEdges };
+    applySharedClipboard(nextClipboard);
+    messageClient.send("clipboard:set", nextClipboard);
     pushState({ nodes: state.nodes, edges: state.edges });
     const remainingNodes = state.nodes.filter(n => !selectedIds.has(n.id));
     const remainingEdges = state.edges.filter(e => !selectedIds.has(e.source) && !selectedIds.has(e.target));
     dispatch({ type: "NODES_CHANGED", nodes: remainingNodes });
     dispatch({ type: "EDGES_CHANGED", edges: remainingEdges });
-  }, [state.nodes, state.edges, pushState]);
+  }, [applySharedClipboard, state.nodes, state.edges, pushState]);
 
   // Trace: REV-016 #10 — paste clipboard: enter ghost mode for placement
   const handlePasteSelected = useCallback(() => {
-    if (!clipboard || clipboard.nodes.length === 0) return;
-    const { newNodes, idMap } = createRemappedNodes(clipboard.nodes, 0, () => crypto.randomUUID());
-    const newEdges = remapEdges(clipboard.edges, idMap).map((e, i) => ({
-      ...e,
-      id: `e-${idMap.get(clipboard.edges[i].source)}-${idMap.get(clipboard.edges[i].target)}-${Date.now()}`,
-    }));
-    setGhostPaste({ nodes: newNodes as FlowNode[], edges: newEdges });
-  }, [clipboard]);
+    pendingPasteFromClipboardRef.current = true;
+    messageClient.send("clipboard:get", {});
+  }, []);
 
   // Confirm ghost paste: place nodes at clicked flow position
   const handleGhostPasteConfirm = useCallback((flowPosition: { x: number; y: number }) => {
     if (!ghostPaste) return;
     pushState({ nodes: state.nodes, edges: state.edges });
-    const cx = ghostPaste.nodes.reduce((s, n) => s + n.position.x, 0) / ghostPaste.nodes.length;
-    const cy = ghostPaste.nodes.reduce((s, n) => s + n.position.y, 0) / ghostPaste.nodes.length;
-    const dx = flowPosition.x - cx;
-    const dy = flowPosition.y - cy;
-    const placedNodes = ghostPaste.nodes.map(n => ({
-      ...n,
-      position: { x: n.position.x + dx, y: n.position.y + dy },
-      selected: true,
-    }));
+    const placedNodes = placeNodesAroundCenter(ghostPaste.nodes, flowPosition);
     const deselectedNodes = state.nodes.map(n => ({ ...n, selected: false }));
     dispatch({ type: "NODES_CHANGED", nodes: [...deselectedNodes, ...placedNodes] });
     dispatch({ type: "EDGES_CHANGED", edges: [...state.edges, ...ghostPaste.edges] });
@@ -567,6 +812,14 @@ export const FlowEditorApp: React.FC = () => {
   const handleOpenSettings = useCallback((nodeId: string) => {
     dispatch({ type: "NODE_SELECTED", nodeId });
   }, []);
+
+  const handleSummarySelect = useCallback((nodeId: string) => {
+    if (!state.nodes.some((node) => node.id === nodeId)) {
+      return;
+    }
+    dispatch({ type: "NODE_SELECTED", nodeId });
+    setFocusedSummaryNodeId(nodeId);
+  }, [state.nodes]);
 
   // Trace: DD-02-007004 — ペースト（ゴースト配置）
   const handlePasteNode = useCallback((clipboard: { type: string; data: Record<string, unknown> }, position: { x: number; y: number }) => {
@@ -771,9 +1024,11 @@ export const FlowEditorApp: React.FC = () => {
       const metadata = nodeTypesList.find(m => m.nodeType === n.type);
       return {
         ...n,
+        selected: n.id === state.selectedNodeId || n.selected === true,
         data: {
           ...n.data,
           nodeType: n.type,
+          debugPaused: n.id === currentDebugNodeId,
           enabled: (n.data.enabled as boolean) ?? true,
           ports: {
             inputs: metadata?.inputPorts ?? [],
@@ -783,7 +1038,7 @@ export const FlowEditorApp: React.FC = () => {
         },
       };
     });
-  }, [state.nodes, nodeTypesList, state.executionState]);
+  }, [state.nodes, nodeTypesList, state.executionState, state.selectedNodeId, currentDebugNodeId]);
 
   // Trace: BD-02-004001 — コンポーネント階層レイアウト
   return (
@@ -792,6 +1047,7 @@ export const FlowEditorApp: React.FC = () => {
         <Toolbar
           isRunning={isRunning}
           isDebugMode={state.isDebugMode}
+          debugNodeLabel={currentDebugNodeLabel}
           isDirty={state.isDirty}
           onExecute={handleExecute}
           onStop={handleStop}
@@ -825,6 +1081,8 @@ export const FlowEditorApp: React.FC = () => {
               nodes={enrichedNodes as unknown as Array<Record<string, unknown>>}
               edges={state.edges as unknown as Array<Record<string, unknown>>}
               executionState={state.executionState}
+              focusedNodeId={focusedSummaryNodeId}
+              onFocusedNodeHandled={() => setFocusedSummaryNodeId(null)}
               onNodesChange={handleNodesChange}
               onEdgesChange={handleEdgesChange}
               onConnect={handleConnect}
@@ -833,9 +1091,12 @@ export const FlowEditorApp: React.FC = () => {
               onDeleteNode={handleDeleteNode}
               onDeleteEdge={handleDeleteEdge}
               onDeleteSelected={handleDeleteSelected}
+              onClipboardSelectionChange={handleCanvasClipboardChange}
               onCutNode={handleCutNode}
+              clipboardNode={nodeClipboard}
               onPasteNode={handlePasteNode}
               onSelectAll={handleSelectAll}
+              onDeselectAll={handleDeselectAll}
               onOpenSettings={handleOpenSettings}
               onAutoLayout={handleAutoLayout}
               showMiniMap={showMiniMap}
@@ -868,9 +1129,24 @@ export const FlowEditorApp: React.FC = () => {
           )}
           {rightPanelOpen && (
             <div className="fr-sidebar-right" style={{ width: rightPanelWidth }}>
+              <LatestExecutionSummary
+                items={latestExecutionSummary}
+                onSelectNode={handleSummarySelect}
+              />
+              <ExecutionAnalyticsPanel
+                snapshot={executionAnalytics}
+                isLoading={isAnalyticsLoading}
+              />
+              <FlowDependencyPanel
+                snapshot={flowDependencies}
+                isLoading={isDependencyLoading}
+                onRefresh={handleDependencyRefresh}
+                onOpenFlow={handleDependencyOpen}
+              />
               <PropertyPanel
                 selectedNode={selectedNodeForPanel}
                 executionOutput={selectedNodeOutput}
+                inputPreview={selectedNodeInputPreview}
                 nodeMetadata={effectiveNodeMetadata}
                 onSettingsChange={handleSettingsChange}
                 onLabelChange={handleLabelChange}

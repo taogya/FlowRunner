@@ -6,6 +6,7 @@ import type { Connection } from "@xyflow/react";
 import * as l10n from "@vscode/l10n";
 import type { PortDefinition } from "@shared/types/node.js";
 import type { NodeExecState, FlowNode } from "./FlowEditorApp.js";
+import { getTopLeftFromCenter } from "../services/clipboardHelpers.js";
 
 // Trace: DD-02-007004
 export interface ContextMenuState {
@@ -20,6 +21,7 @@ export interface ContextMenuState {
 export interface CustomNodeData {
   label: string;
   nodeType: string;
+  debugPaused?: boolean;
   enabled: boolean;
   ports: {
     inputs: PortDefinition[];
@@ -54,6 +56,17 @@ const nodeTypeAbbrevs: Record<string, string> = {
   parallel: "P",
 };
 
+const NODE_HEADER_HEIGHT = 31;
+const PORTS_VERTICAL_PADDING = 4;
+const PORT_ROW_HEIGHT = 16;
+const PORT_ROW_GAP = 2;
+
+function getPortHandleStyle(index: number): React.CSSProperties {
+  return {
+    top: `${NODE_HEADER_HEIGHT + PORTS_VERTICAL_PADDING + (PORT_ROW_HEIGHT / 2) + index * (PORT_ROW_HEIGHT + PORT_ROW_GAP)}px`,
+  };
+}
+
 // Trace: DD-02-007003
 export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
   data,
@@ -61,6 +74,7 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
 }) => {
   const ports = data.ports ?? { inputs: [], outputs: [] };
   const enabled = data.enabled ?? true;
+  const debugPaused = data.debugPaused ?? false;
   const execState = data.executionState ?? "idle";
   const nodeType = data.nodeType ?? "command";
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -77,6 +91,7 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
   const classNames = [
     "fr-node",
     `fr-node--${nodeType}`,
+    debugPaused ? "fr-node--debug-paused" : "",
     selected ? "fr-node--selected" : "",
     !enabled ? "fr-node--disabled" : "",
   ].filter(Boolean).join(" ");
@@ -89,7 +104,7 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
           type="target"
           position={Position.Left}
           id={port.id}
-          style={ports.inputs.length > 1 ? { top: `${((i + 1) / (ports.inputs.length + 1)) * 100}%` } : undefined}
+          style={getPortHandleStyle(i)}
         />
       ))}
       <div className="fr-node-header">
@@ -111,7 +126,7 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
               >{port.label}</span>
             ))}
           </div>
-          <div className="fr-node-port-group" style={{ textAlign: "right" }}>
+          <div className="fr-node-port-group fr-node-port-group--outputs">
             {ports.outputs.map((port) => (
               <span
                 key={port.id}
@@ -129,7 +144,7 @@ export const CustomNodeComponent: React.FC<CustomNodeProps> = ({
           type="source"
           position={Position.Right}
           id={port.id}
-          style={ports.outputs.length > 1 ? { top: `${((i + 1) / (ports.outputs.length + 1)) * 100}%` } : undefined}
+          style={getPortHandleStyle(i)}
         />
       ))}
       {tooltip && createPortal(
@@ -169,6 +184,8 @@ interface FlowCanvasProps {
   nodes: Array<Record<string, unknown>>;
   edges: Array<Record<string, unknown>>;
   executionState: Map<string, NodeExecState>;
+  focusedNodeId?: string | null;
+  onFocusedNodeHandled?: () => void;
   onNodesChange: (changes: unknown[]) => void;
   onEdgesChange: (changes: unknown[]) => void;
   onNodeClick: (nodeId: string) => void;
@@ -178,9 +195,12 @@ interface FlowCanvasProps {
   onDeleteEdge?: (edgeId: string) => void;
   onDeleteSelected?: () => void;
   onCopyNode?: (nodeId: string) => void;
+  onClipboardSelectionChange?: (clipboard: { nodes: FlowNode[]; edges: [] }) => void;
   onCutNode?: (nodeId: string) => void;
+  clipboardNode?: ClipboardNode | null;
   onPasteNode?: (clipboard: ClipboardNode, position: { x: number; y: number }) => void;
   onSelectAll?: () => void;
+  onDeselectAll?: () => void;
   onOpenSettings?: (nodeId: string) => void;
   onAutoLayout?: () => void;
   showMiniMap?: boolean;
@@ -204,6 +224,8 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   nodes,
   edges,
   executionState,
+  focusedNodeId,
+  onFocusedNodeHandled,
   onNodesChange,
   onEdgesChange,
   onNodeClick,
@@ -213,9 +235,12 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   onDeleteEdge,
   onDeleteSelected,
   onCopyNode,
+  onClipboardSelectionChange,
   onCutNode,
+  clipboardNode,
   onPasteNode,
   onSelectAll,
+  onDeselectAll,
   onOpenSettings,
   onAutoLayout,
   showMiniMap = false,
@@ -279,9 +304,32 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   }, [edges, executionState, highlightedEdgeId]);
   // Trace: DD-02-007004
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(initialContextMenu);
-  const clipboardRef = useRef<ClipboardNode | null>(null);
   const reactFlowInstance = useReactFlow();
   const { screenToFlowPosition } = reactFlowInstance;
+
+  useEffect(() => {
+    if (!focusedNodeId) {
+      return;
+    }
+
+    const targetNode = nodes.find((node) => String(node.id) === focusedNodeId);
+    if (!targetNode) {
+      onFocusedNodeHandled?.();
+      return;
+    }
+
+    const position = targetNode.position as { x: number; y: number } | undefined;
+    if (!position) {
+      onFocusedNodeHandled?.();
+      return;
+    }
+
+    void reactFlowInstance.setCenter(position.x + 80, position.y + 30, {
+      duration: 180,
+      zoom: reactFlowInstance.getZoom(),
+    });
+    onFocusedNodeHandled?.();
+  }, [focusedNodeId, nodes, onFocusedNodeHandled, reactFlowInstance]);
 
   // Ghost placement mode
   const [ghostClipboard, setGhostClipboard] = useState<ClipboardNode | null>(null);
@@ -331,37 +379,58 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
   const handleCopy = useCallback(() => {
     if (contextMenu.targetType === "node" && contextMenu.targetId) {
       const node = nodes.find((n) => (n as { id: string }).id === contextMenu.targetId) as
-        | { type: string; data: Record<string, unknown> }
+        | { id: string; type: string; data: Record<string, unknown>; position?: { x: number; y: number } }
         | undefined;
       if (node) {
-        clipboardRef.current = { type: node.type, data: { ...node.data } };
+        // Trace: FEAT-00021 — コンテキストメニュー操作もフロー間共有クリップボードへ送る
+        onClipboardSelectionChange?.({
+          nodes: [
+            {
+              id: node.id,
+              type: node.type,
+              position: structuredClone(node.position ?? { x: 0, y: 0 }) as { x: number; y: number },
+              data: structuredClone(node.data),
+            },
+          ],
+          edges: [],
+        });
         // Enter ghost placement mode immediately on Copy
-        setGhostClipboard({ type: node.type, data: { ...node.data } });
+        setGhostClipboard({ type: node.type, data: structuredClone(node.data) });
       }
       onCopyNode?.(contextMenu.targetId);
     }
     closeContextMenu();
-  }, [contextMenu, nodes, onCopyNode, closeContextMenu]);
+  }, [contextMenu, nodes, onClipboardSelectionChange, onCopyNode, closeContextMenu]);
 
   const handleCut = useCallback(() => {
     if (contextMenu.targetType === "node" && contextMenu.targetId) {
       const node = nodes.find((n) => (n as { id: string }).id === contextMenu.targetId) as
-        | { type: string; data: Record<string, unknown> }
+        | { id: string; type: string; data: Record<string, unknown>; position?: { x: number; y: number } }
         | undefined;
       if (node) {
-        clipboardRef.current = { type: node.type, data: { ...node.data } };
+        onClipboardSelectionChange?.({
+          nodes: [
+            {
+              id: node.id,
+              type: node.type,
+              position: structuredClone(node.position ?? { x: 0, y: 0 }) as { x: number; y: number },
+              data: structuredClone(node.data),
+            },
+          ],
+          edges: [],
+        });
       }
       onCutNode?.(contextMenu.targetId);
     }
     closeContextMenu();
-  }, [contextMenu, nodes, onCutNode, closeContextMenu]);
+  }, [contextMenu, nodes, onClipboardSelectionChange, onCutNode, closeContextMenu]);
 
   const handlePaste = useCallback(() => {
-    if (clipboardRef.current) {
-      setGhostClipboard({ ...clipboardRef.current });
+    if (clipboardNode) {
+      setGhostClipboard(structuredClone(clipboardNode));
     }
     closeContextMenu();
-  }, [closeContextMenu]);
+  }, [clipboardNode, closeContextMenu]);
 
   const handleDelete = useCallback(() => {
     if (contextMenu.targetId) {
@@ -419,9 +488,8 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
       if (e.button === 0) {
         e.stopPropagation();
         e.preventDefault();
-        // Offset so the node center aligns with cursor (approx node size: 160x60)
         const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-        onPasteNode?.(ghostClipboard, { x: flowPos.x - 80, y: flowPos.y - 30 });
+        onPasteNode?.(ghostClipboard, getTopLeftFromCenter(flowPos));
         setGhostClipboard(null);
       }
     };
@@ -500,6 +568,7 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
         onPaneClick={() => {
           setHighlightedEdgeId(null);
           closeContextMenu();
+          onDeselectAll?.();
         }}
       >
         {showMiniMap && <MiniMap />}
@@ -553,8 +622,8 @@ export const FlowCanvas: React.FC<FlowCanvasProps> = ({
             <>
               <div
                 role="menuitem"
-                className={`fr-context-menu-item ${clipboardRef.current ? "" : "fr-context-menu-item--disabled"}`}
-                onClick={clipboardRef.current ? handlePaste : undefined}
+                className={`fr-context-menu-item ${clipboardNode ? "" : "fr-context-menu-item--disabled"}`}
+                onClick={clipboardNode ? handlePaste : undefined}
               >
                 {l10n.t("Paste")}
               </div>

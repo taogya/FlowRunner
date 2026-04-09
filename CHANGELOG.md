@@ -5,6 +5,29 @@ All notable changes to the "FlowRunner" extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0]
+
+### Added
+
+- Starter Template / Recent Template flow creation paths
+- Preflight validation before execute and debug
+- Latest Execution Summary, Execution Analytics, and Flow Dependencies in the right sidebar
+- Flow duplication from the flow list
+
+### Changed
+
+- Property panel now uses collapsible Settings and Output sections instead of tabs
+- Flow creation flow now starts with a mode picker for blank, starter, or recent templates
+
+### Fixed
+
+- Node palette categories, built-in node labels, port labels, and metadata-driven setting labels now localize correctly in English and Japanese
+- Property panel output empty states and condition branch badges now use runtime localization
+
+### Removed
+
+- Copilot Chat integration (`@flowrunner /run`, `/list`, `/create`)
+
 ## [0.2.1] - 2026-04-02
 
 ### Added

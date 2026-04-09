@@ -52,8 +52,8 @@ export class LogExecutor implements INodeExecutor {
       : expandTemplate("{{input}}", context.inputs.in, context.variables);
     const level = (context.settings.level as string) || "info";
     // Use LogOutputChannel methods for colored output if available
-    const nodeId = context.nodeId;
-    const tagged = `(${nodeId}) ${message}`;
+    const nodeDisplayName = context.nodeLabel?.trim() || context.nodeId;
+    const tagged = `(${nodeDisplayName}) ${message}`;
     const ch = this.outputChannel as { info?: (...args: unknown[]) => void; warn?: (...args: unknown[]) => void; error?: (...args: unknown[]) => void };
     if (level === "warn" && typeof ch.warn === "function") {
       ch.warn(tagged);

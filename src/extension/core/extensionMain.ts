@@ -1,16 +1,18 @@
 // Trace: DD-01-002001, DD-01-002003, DD-01-002004, DD-01-002005
 import * as vscode from "vscode";
-import * as l10n from "@vscode/l10n";
 import { FlowRepository } from "@extension/repositories/FlowRepository.js";
 import { HistoryRepository } from "@extension/repositories/HistoryRepository.js";
 import { NodeExecutorRegistry } from "@extension/registries/NodeExecutorRegistry.js";
 import { registerBuiltinExecutors } from "@extension/registries/registerBuiltinExecutors.js";
 import { FlowService } from "@extension/services/FlowService.js";
 import { HistoryService } from "@extension/services/HistoryService.js";
+import { ExecutionAnalyticsService } from "@extension/services/ExecutionAnalyticsService.js";
+import { FlowDependencyService } from "@extension/services/FlowDependencyService.js";
 import { ExecutionService } from "@extension/services/ExecutionService.js";
 import { DebugService } from "@extension/services/DebugService.js";
+import { FlowValidationService } from "@extension/services/FlowValidationService.js";
 import { TriggerService } from "@extension/services/TriggerService.js";
-import { ChatParticipantHandler } from "@extension/chat/ChatParticipantHandler.js";
+import { FlowFilterState } from "@extension/ui/FlowFilterState.js";
 import { FlowTreeProvider } from "@extension/ui/FlowTreeProvider.js";
 import { MessageBroker } from "@extension/services/MessageBroker.js";
 import { FlowEditorManager } from "@extension/ui/FlowEditorManager.js";
@@ -26,7 +28,7 @@ export function activate(context: vscode.ExtensionContext): void {
   if (!workspaceFolder) {
     // Trace: DD-01-002005
     vscode.window.showErrorMessage(
-      l10n.t("FlowRunner requires an open workspace folder."),
+      vscode.l10n.t("FlowRunner requires an open workspace folder."),
     );
     return;
   }
@@ -59,10 +61,16 @@ export function activate(context: vscode.ExtensionContext): void {
     historyService,
     outputChannel,
   );
+  const executionAnalyticsService = new ExecutionAnalyticsService(historyService);
+  const flowDependencyService = new FlowDependencyService(flowService);
   const debugService = new DebugService(
     flowService,
     nodeExecutorRegistry,
     historyService,
+  );
+  const flowValidationService = new FlowValidationService(
+    flowService,
+    nodeExecutorRegistry,
   );
   registerBuiltinExecutors(nodeExecutorRegistry, {
     outputChannel,
@@ -72,12 +80,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // Phase 3: UI & Communication
   const triggerService = new TriggerService(executionService, workspaceFolder);
-  const flowTreeProvider = new FlowTreeProvider(flowService);
+  const flowFilterState = new FlowFilterState();
+  const flowTreeProvider = new FlowTreeProvider(flowService, flowFilterState);
   vscode.window.registerTreeDataProvider(
     "flowrunner.flowList",
     flowTreeProvider,
   );
-  const flowEditorManager = new FlowEditorManager(
+  let flowEditorManager: FlowEditorManager;
+  flowEditorManager = new FlowEditorManager(
     context.extensionUri,
     () =>
       new MessageBroker(
@@ -86,6 +96,10 @@ export function activate(context: vscode.ExtensionContext): void {
         debugService,
         nodeExecutorRegistry,
         triggerService,
+        flowValidationService,
+        executionAnalyticsService,
+        flowDependencyService,
+        (targetFlowId, flowName) => flowEditorManager.openEditor(targetFlowId, flowName),
       ),
   );
 
@@ -96,6 +110,9 @@ export function activate(context: vscode.ExtensionContext): void {
     executionService,
     flowTreeProvider as unknown as IFlowTreeProvider,
     outputChannel,
+    debugService,
+    flowValidationService,
+    flowFilterState,
   );
   commandRegistry.registerAll();
 
@@ -131,7 +148,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const count = triggerService.getActiveTriggers().length;
     if (count > 0) {
       triggerStatusBar.text = `$(zap) ${count} trigger${count > 1 ? "s" : ""}`;
-      triggerStatusBar.tooltip = l10n.t("Click to deactivate all triggers");
+      triggerStatusBar.tooltip = vscode.l10n.t("Click to deactivate all triggers");
       triggerStatusBar.show();
     } else {
       triggerStatusBar.hide();
@@ -145,7 +162,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const activeFlowId = flowEditorManager.getActiveFlowId?.();
       if (!activeFlowId) {
         void vscode.window.showWarningMessage(
-          l10n.t("No flow is currently open."),
+          vscode.l10n.t("No flow is currently open."),
         );
         return;
       }
@@ -161,7 +178,7 @@ export function activate(context: vscode.ExtensionContext): void {
       };
       if (config.triggerType === "manual") {
         void vscode.window.showInformationMessage(
-          l10n.t("This flow uses manual trigger. No automatic trigger to activate."),
+          vscode.l10n.t("This flow uses manual trigger. No automatic trigger to activate."),
         );
         return;
       }
@@ -172,7 +189,7 @@ export function activate(context: vscode.ExtensionContext): void {
         payload: { active: true },
       });
       void vscode.window.showInformationMessage(
-        l10n.t("Trigger activated for this flow."),
+        vscode.l10n.t("Trigger activated for this flow."),
       );
     },
   );
@@ -183,7 +200,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const activeFlowId = flowEditorManager.getActiveFlowId?.();
       if (!activeFlowId) {
         void vscode.window.showWarningMessage(
-          l10n.t("No flow is currently open."),
+          vscode.l10n.t("No flow is currently open."),
         );
         return;
       }
@@ -194,7 +211,7 @@ export function activate(context: vscode.ExtensionContext): void {
         payload: { active: false },
       });
       void vscode.window.showInformationMessage(
-        l10n.t("Trigger deactivated for this flow."),
+        vscode.l10n.t("Trigger deactivated for this flow."),
       );
     },
   );
@@ -212,24 +229,10 @@ export function activate(context: vscode.ExtensionContext): void {
         });
       }
       void vscode.window.showInformationMessage(
-        l10n.t("All triggers deactivated."),
+        vscode.l10n.t("All triggers deactivated."),
       );
     },
   );
-
-  // Phase 6.7: Chat Participant (@flowrunner) — Trace: FEAT-00003-003006
-  const chatHandler = new ChatParticipantHandler(flowService, executionService);
-  const chatParticipant = vscode.chat.createChatParticipant(
-    "flowrunner.flowrunner",
-    (request, chatContext, stream, token) =>
-      chatHandler.handle(request, chatContext, stream, token),
-  );
-  chatParticipant.iconPath = vscode.Uri.joinPath(context.extensionUri, "media", "icon.svg");
-  chatParticipant.followupProvider = {
-    provideFollowups(result) {
-      return chatHandler.provideFollowups(result);
-    },
-  };
 
   // Phase 7: Disposable registration
   context.subscriptions.push(
@@ -243,7 +246,6 @@ export function activate(context: vscode.ExtensionContext): void {
     triggerActivateCmd,
     triggerDeactivateCmd,
     triggerDeactivateAllCmd,
-    chatParticipant,
   );
 }
 

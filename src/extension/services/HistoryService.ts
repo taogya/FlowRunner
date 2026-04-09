@@ -1,4 +1,5 @@
 // Trace: DD-04-004001, DD-04-004002, DD-04-004003
+import type { HistoryRecordsWithDiagnostics } from "@extension/interfaces/HistoryRecordsWithDiagnostics.js";
 import type { IHistoryRepository } from "@extension/interfaces/IHistoryRepository.js";
 import type { IHistoryService } from "@extension/interfaces/IHistoryService.js";
 import type { ExecutionRecord, ExecutionSummary } from "@shared/types/execution.js";
@@ -21,6 +22,17 @@ export class HistoryService implements IHistoryService {
 
   async getRecords(flowId: string): Promise<ExecutionSummary[]> {
     return this.repository.list(flowId);
+  }
+
+  async getRecordsWithDiagnostics(flowId: string): Promise<HistoryRecordsWithDiagnostics> {
+    if (this.repository.listWithDiagnostics) {
+      return this.repository.listWithDiagnostics(flowId);
+    }
+
+    return {
+      summaries: await this.repository.list(flowId),
+      unreadableCount: 0,
+    };
   }
 
   async getRecord(recordId: string): Promise<ExecutionRecord> {

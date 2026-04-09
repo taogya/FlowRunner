@@ -1,5 +1,6 @@
 // Trace: DD-04-005001, DD-04-005002, DD-04-005003, DD-04-005004
 import type { IHistoryRepository } from "@extension/interfaces/IHistoryRepository.js";
+import type { HistoryRecordsWithDiagnostics } from "@extension/interfaces/HistoryRecordsWithDiagnostics.js";
 import type { ExecutionRecord, ExecutionSummary } from "@shared/types/execution.js";
 
 interface IFileSystem {
@@ -31,6 +32,23 @@ function sanitizeName(name: string): string {
 
 function buildHistoryDirName(flowName: string, flowId: string): string {
   return `${sanitizeName(flowName)}_${flowId.slice(0, 8)}`;
+}
+
+function isExecutionRecord(value: unknown): value is ExecutionRecord {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const record = value as Partial<ExecutionRecord>;
+  return (
+    typeof record.id === "string" &&
+    typeof record.flowId === "string" &&
+    typeof record.flowName === "string" &&
+    typeof record.startedAt === "string" &&
+    typeof record.duration === "number" &&
+    typeof record.status === "string" &&
+    Array.isArray(record.nodeResults)
+  );
 }
 
 export class HistoryRepository implements IHistoryRepository {
@@ -86,17 +104,34 @@ export class HistoryRepository implements IHistoryRepository {
   }
 
   async list(flowId: string): Promise<ExecutionSummary[]> {
+    return (await this.listWithDiagnostics(flowId)).summaries;
+  }
+
+  async listWithDiagnostics(flowId: string): Promise<HistoryRecordsWithDiagnostics> {
     validateId(flowId);
     const dir = await this.findHistoryDir(flowId);
-    if (!dir) return [];
+    if (!dir) {
+      return { summaries: [], unreadableCount: 0 };
+    }
     const entries = await this.fs.readDirectory(dir);
     const records: ExecutionRecord[] = [];
+    let unreadableCount = 0;
 
     for (const [name] of entries) {
       if (!name.endsWith(".json")) continue;
       const uri = Uri.file(`${dir.fsPath}/${name}`);
-      const data = await this.fs.readFile(uri);
-      records.push(JSON.parse(new TextDecoder().decode(data)) as ExecutionRecord);
+      try {
+        const data = await this.fs.readFile(uri);
+        const decoded = JSON.parse(new TextDecoder().decode(data)) as unknown;
+        if (!isExecutionRecord(decoded)) {
+          unreadableCount += 1;
+          continue;
+        }
+        records.push(decoded);
+      } catch {
+        unreadableCount += 1;
+        continue;
+      }
     }
 
     records.sort(
@@ -104,14 +139,17 @@ export class HistoryRepository implements IHistoryRepository {
         new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
     );
 
-    return records.map((r) => ({
-      id: r.id,
-      flowId: r.flowId,
-      flowName: r.flowName,
-      startedAt: r.startedAt,
-      duration: r.duration,
-      status: r.status,
-    }));
+    return {
+      summaries: records.map((r) => ({
+        id: r.id,
+        flowId: r.flowId,
+        flowName: r.flowName,
+        startedAt: r.startedAt,
+        duration: r.duration,
+        status: r.status,
+      })),
+      unreadableCount,
+    };
   }
 
   async delete(recordId: string): Promise<void> {

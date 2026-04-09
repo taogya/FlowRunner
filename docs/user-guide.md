@@ -8,7 +8,7 @@ FlowRunner is a node-based workflow execution extension for Visual Studio Code. 
 
 1. Open VS Code and install the FlowRunner extension
 2. Click the **FlowRunner** icon in the Activity Bar (left sidebar)
-3. Click **Create Flow** in the Flow List panel
+3. Click **Create Flow** in the Flow List panel, then choose **Blank Flow**, **Starter Template**, or **Recent Template**
 4. Design your workflow in the visual editor
 5. Click **Execute** (▶) to run the flow
 
@@ -57,13 +57,14 @@ FlowRunner is a node-based workflow execution extension for Visual Studio Code. 
 
 Right-click on the canvas, a node, or an edge to access context menu options including Auto Layout, Delete, and more.
 
-### Property Panel
+### Right Sidebar
 
-Select a node to view and edit its properties in the right panel. Each node type has specific settings fields.
+The right sidebar combines execution insights and node details:
 
-### Output Panel
-
-After execution, select a node to view its output in the right panel (Output tab). Error details are also shown here.
+- **Latest Execution Summary** — Shows the latest run in execution order with status, duration, and a one-line output or error summary. Click an item to select and focus the node.
+- **Execution Analytics** — Shows recent success/failure metrics, success rate, average duration, recent failures, and the slowest node.
+- **Flow Dependencies** — Shows outgoing/incoming subflow relationships and dependency warnings.
+- **Property Panel** — When you select a node, the same sidebar shows collapsible **Settings** and **Output** sections for the selected node.
 
 ---
 
@@ -292,9 +293,10 @@ Flow runs at regular intervals.
 
 | Command | Description |
 |---------|-------------|
-| FlowRunner: Create Flow | Create a new empty flow |
-| FlowRunner: Create Flow from Template | Create a flow from a saved template |
+| FlowRunner: Create Flow | Open the creation picker for Blank Flow, Starter Template, or Recent Template |
+| FlowRunner: Create Flow from Template | Open the template picker directly |
 | FlowRunner: Save Flow as Template | Save the current flow as a reusable template |
+| FlowRunner: Duplicate Flow | Duplicate the selected flow with a new ID |
 | FlowRunner: Export Flow | Export flow to a JSON file |
 | FlowRunner: Import Flow | Import flow from a JSON file |
 | FlowRunner: Execute Flow | Execute the current flow |

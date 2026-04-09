@@ -10,6 +10,7 @@ import type { IVariableStore } from "./IVariableStore.js";
 // Trace: BD-03-002003
 export interface IExecutionContext {
   nodeId: string;
+  nodeLabel?: string;
   settings: NodeSettings;
   inputs: PortDataMap;
   flowId: string;

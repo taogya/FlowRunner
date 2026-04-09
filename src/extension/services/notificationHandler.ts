@@ -1,6 +1,5 @@
-// Trace: DD-04-006001, DD-04-006002
+// Trace: DD-04-006001
 import * as vscode from "vscode";
-import * as l10n from "@vscode/l10n";
 
 interface CompletionEvent {
   type: string;
@@ -11,38 +10,106 @@ interface CompletionEvent {
   errorNodeId?: string;
 }
 
+const DEFAULT_COMPLETION_NOTIFICATION_AUTO_HIDE = true;
+const DEFAULT_COMPLETION_NOTIFICATION_DURATION_SECONDS = 3;
+
+type CompletionStatus = "success" | "error" | "cancelled";
+
+interface CompletionNotificationSettings {
+  autoHide: boolean;
+  durationMs: number;
+}
+
+function getCompletionNotificationSettings(): CompletionNotificationSettings {
+  const configuration = vscode.workspace.getConfiguration("flowrunner");
+  const autoHide = configuration.get<boolean>(
+    "completionNotificationAutoHide",
+    DEFAULT_COMPLETION_NOTIFICATION_AUTO_HIDE,
+  );
+  const rawDurationSeconds = configuration.get<number>(
+    "completionNotificationDurationSeconds",
+    DEFAULT_COMPLETION_NOTIFICATION_DURATION_SECONDS,
+  );
+  const durationSeconds =
+    typeof rawDurationSeconds === "number"
+    && Number.isFinite(rawDurationSeconds)
+    && rawDurationSeconds >= 1
+      ? rawDurationSeconds
+      : DEFAULT_COMPLETION_NOTIFICATION_DURATION_SECONDS;
+
+  return {
+    autoHide,
+    durationMs: durationSeconds * 1000,
+  };
+}
+
+function getCompletionMessage(
+  event: CompletionEvent,
+): { status: CompletionStatus; message: string } | null {
+  if (event.status === "success") {
+    return {
+      status: "success",
+      message: vscode.l10n.t('Flow "{0}" completed successfully', event.flowName),
+    };
+  }
+
+  if (event.status === "error") {
+    return {
+      status: "error",
+      message: vscode.l10n.t(
+        'Flow "{0}" failed with error: {1}',
+        event.flowName,
+        event.error ?? "unknown error",
+      ),
+    };
+  }
+
+  if (event.status === "cancelled") {
+    return {
+      status: "cancelled",
+      message: vscode.l10n.t('Flow "{0}" was cancelled', event.flowName),
+    };
+  }
+
+  return null;
+}
+
+function showAutoHideCompletionMessage(
+  status: CompletionStatus,
+  message: string,
+  durationMs: number,
+): void {
+  const icon = status === "success"
+    ? "$(check)"
+    : status === "error"
+      ? "$(error)"
+      : "$(warning)";
+  vscode.window.setStatusBarMessage(`${icon} ${message}`, durationMs);
+}
+
 export function createNotificationHandler(): (event: CompletionEvent) => Promise<void> {
   return async (event: CompletionEvent) => {
-    // Trace: DD-04-006001
-    if (event.status === "success") {
-      const action = await vscode.window.showInformationMessage(
-        l10n.t('Flow "{0}" completed successfully', event.flowName),
-        l10n.t("Show History"),
+    const notification = getCompletionMessage(event);
+    if (!notification) {
+      return;
+    }
+
+    const settings = getCompletionNotificationSettings();
+    if (settings.autoHide) {
+      showAutoHideCompletionMessage(
+        notification.status,
+        notification.message,
+        settings.durationMs,
       );
-      // Trace: DD-04-006002
-      if (action === l10n.t("Show History")) {
-        await vscode.commands.executeCommand(
-          "flowrunner.showHistory",
-          event.flowId,
-        );
-      }
-    } else if (event.status === "error") {
-      const action = await vscode.window.showErrorMessage(
-        l10n.t('Flow "{0}" failed with error: {1}', event.flowName, event.error ?? "unknown error"),
-        l10n.t("Show Details"),
-      );
-      // Trace: DD-04-006002
-      if (action === l10n.t("Show Details")) {
-        await vscode.commands.executeCommand(
-          "flowrunner.selectNode",
-          event.flowId,
-          event.errorNodeId,
-        );
-      }
-    } else if (event.status === "cancelled") {
-      await vscode.window.showWarningMessage(
-        l10n.t('Flow "{0}" was cancelled', event.flowName),
-      );
+      return;
+    }
+
+    if (notification.status === "success") {
+      await vscode.window.showInformationMessage(notification.message);
+    } else if (notification.status === "error") {
+      await vscode.window.showErrorMessage(notification.message);
+    } else {
+      await vscode.window.showWarningMessage(notification.message);
     }
   };
 }

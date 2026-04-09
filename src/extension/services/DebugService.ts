@@ -2,7 +2,7 @@
 import type { IExecutionContext } from "@extension/interfaces/INodeExecutor.js";
 import type { INodeExecutorRegistry } from "@extension/interfaces/INodeExecutorRegistry.js";
 import type { IHistoryService } from "@extension/interfaces/IHistoryService.js";
-import type { DebugEvent } from "@shared/types/events.js";
+import type { DebugEvent, DebugPausedInputPreview } from "@shared/types/events.js";
 import type { NodeResultMap } from "@shared/types/execution.js";
 import type { PortDataMap, NodeInstance, EdgeInstance } from "@shared/types/flow.js";
 import { VariableStore } from "@extension/interfaces/IVariableStore.js";
@@ -86,6 +86,7 @@ export class DebugService {
     this.fireEvent({
       nextNodeId: this.sortedNodes[0].id,
       intermediateResults: { ...this.nodeResults },
+      pausedInputPreview: this.createPausedInputPreview(this.sortedNodes[0].id),
     });
   }
 
@@ -128,6 +129,7 @@ export class DebugService {
       this.fireEvent({
         nextNodeId: this.sortedNodes[this.cursor].id,
         intermediateResults: { ...this.nodeResults },
+        pausedInputPreview: this.createPausedInputPreview(this.sortedNodes[this.cursor].id),
       });
       return;
     }
@@ -157,6 +159,7 @@ export class DebugService {
     const inputs = buildInputs(currentNode.id, this.edges, this.outputMap);
     const context: IExecutionContext = {
       nodeId: currentNode.id,
+      nodeLabel: currentNode.label,
       settings: currentNode.settings,
       inputs,
       flowId: this.flowId,
@@ -222,6 +225,7 @@ export class DebugService {
           this.fireEvent({
             nextNodeId: bodyNodes[0].id,
             intermediateResults: { ...this.nodeResults },
+            pausedInputPreview: this.createPausedInputPreview(bodyNodes[0].id),
           });
           return; // Don't advance cursor — loop mode handles it
         }
@@ -249,10 +253,13 @@ export class DebugService {
       return;
     }
 
+    this.cursor = nextNodeIndex;
+
     // Fire debug event with next node
     this.fireEvent({
       nextNodeId: this.sortedNodes[nextNodeIndex].id,
       intermediateResults: { ...this.nodeResults },
+      pausedInputPreview: this.createPausedInputPreview(this.sortedNodes[nextNodeIndex].id),
     });
   }
 
@@ -286,6 +293,7 @@ export class DebugService {
       const inputs = buildInputs(bodyNode.id, this.edges, this.outputMap);
       const context: IExecutionContext = {
         nodeId: bodyNode.id,
+        nodeLabel: bodyNode.label,
         settings: bodyNode.settings,
         inputs,
         flowId: this.flowId,
@@ -323,6 +331,7 @@ export class DebugService {
       this.fireEvent({
         nextNodeId: state.bodyNodes[0].id,
         intermediateResults: { ...this.nodeResults },
+        pausedInputPreview: this.createPausedInputPreview(state.bodyNodes[0].id),
       });
     } else {
       // All iterations complete — restore done output and advance
@@ -346,8 +355,27 @@ export class DebugService {
       this.fireEvent({
         nextNodeId: this.sortedNodes[this.cursor].id,
         intermediateResults: { ...this.nodeResults },
+        pausedInputPreview: this.createPausedInputPreview(this.sortedNodes[this.cursor].id),
       });
     }
+  }
+
+  private createPausedInputPreview(nodeId: string | undefined): DebugPausedInputPreview | undefined {
+    if (!nodeId) {
+      return undefined;
+    }
+
+    const node = this.sortedNodes.find((candidate) => candidate.id === nodeId);
+    if (!node) {
+      return undefined;
+    }
+
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      nodeLabel: node.label,
+      inputs: buildInputs(node.id, this.edges, this.outputMap),
+    };
   }
 
   private markSkippedBranch(startNodeId: string): void {
@@ -418,6 +446,7 @@ export class DebugService {
     this.fireEvent({
       nextNodeId: undefined,
       intermediateResults: { ...this.nodeResults },
+      pausedInputPreview: undefined,
     });
     this.debugging = false;
     this.sortedNodes = [];

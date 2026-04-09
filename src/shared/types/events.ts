@@ -22,8 +22,16 @@ export interface FlowEvent {
   progress?: { current: number; total: number };
 }
 
+export interface DebugPausedInputPreview {
+  nodeId: string;
+  nodeType: string;
+  nodeLabel: string;
+  inputs: PortDataMap;
+}
+
 // Trace: BD-04-003001
 export interface DebugEvent {
   nextNodeId: string | undefined;
   intermediateResults: NodeResultMap;
+  pausedInputPreview?: DebugPausedInputPreview;
 }

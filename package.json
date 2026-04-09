@@ -2,10 +2,11 @@
   "name": "taogya-flowrunner",
   "displayName": "FlowRunner - Workflow Automator",
   "description": "%extension.description%",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "Taogya",
   "license": "BSD-3-Clause",
   "icon": "media/icon.png",
+  "l10n": "./l10n",
   "repository": {
     "type": "git",
     "url": "https://github.com/taogya/FlowRunner.git"
@@ -68,6 +69,11 @@
         "category": "FlowRunner"
       },
       {
+        "command": "flowrunner.duplicateFlow",
+        "title": "%command.duplicateFlow%",
+        "category": "FlowRunner"
+      },
+      {
         "command": "flowrunner.debugFlow",
         "title": "%command.debugFlow%",
         "category": "FlowRunner"
@@ -77,6 +83,18 @@
         "title": "%command.refreshFlowList%",
         "category": "FlowRunner",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "flowrunner.searchFlows",
+        "title": "%command.searchFlows%",
+        "category": "FlowRunner",
+        "icon": "$(search)"
+      },
+      {
+        "command": "flowrunner.clearFlowFilter",
+        "title": "%command.clearFlowFilter%",
+        "category": "FlowRunner",
+        "icon": "$(clear-all)"
       },
       {
         "command": "flowrunner.activateTrigger",
@@ -128,6 +146,16 @@
           "command": "flowrunner.refreshFlowList",
           "when": "view == flowrunner.flowList",
           "group": "navigation"
+        },
+        {
+          "command": "flowrunner.searchFlows",
+          "when": "view == flowrunner.flowList",
+          "group": "navigation"
+        },
+        {
+          "command": "flowrunner.clearFlowFilter",
+          "when": "view == flowrunner.flowList && flowrunner.hasActiveFlowFilter",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -148,6 +176,10 @@
           "when": "view == flowrunner.flowList"
         },
         {
+          "command": "flowrunner.duplicateFlow",
+          "when": "view == flowrunner.flowList"
+        },
+        {
           "command": "flowrunner.exportFlow",
           "when": "view == flowrunner.flowList"
         }
@@ -165,44 +197,20 @@
           "type": "number",
           "default": 10,
           "description": "%config.historyMaxCount%"
+        },
+        "flowrunner.completionNotificationAutoHide": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.completionNotificationAutoHide%"
+        },
+        "flowrunner.completionNotificationDurationSeconds": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "description": "%config.completionNotificationDurationSeconds%"
         }
       }
-    },
-    "chatParticipants": [
-      {
-        "id": "flowrunner.flowrunner",
-        "name": "flowrunner",
-        "fullName": "FlowRunner",
-        "description": "%chatParticipant.description%",
-        "isSticky": false,
-        "commands": [
-          {
-            "name": "run",
-            "description": "%chatParticipant.command.run%"
-          },
-          {
-            "name": "list",
-            "description": "%chatParticipant.command.list%"
-          },
-          {
-            "name": "create",
-            "description": "%chatParticipant.command.create%"
-          }
-        ],
-        "disambiguation": [
-          {
-            "category": "flowrunner",
-            "description": "The user wants to run, list, or create automation flows using FlowRunner",
-            "examples": [
-              "Run the deployment flow",
-              "Show me all my flows",
-              "Create a flow that builds and tests my project",
-              "Make a workflow from my terminal history"
-            ]
-          }
-        ]
-      }
-    ]
+    }
   },
   "scripts": {
     "compile": "tsc -p ./ --noEmit && node esbuild.config.mjs",

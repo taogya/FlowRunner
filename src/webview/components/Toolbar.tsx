@@ -5,6 +5,7 @@ import * as l10n from "@vscode/l10n";
 interface ToolbarProps {
   isRunning: boolean;
   isDebugMode: boolean;
+  debugNodeLabel?: string | null;
   isDirty: boolean;
   onExecute: () => void;
   onStop: () => void;
@@ -31,6 +32,7 @@ interface ToolbarProps {
 export const Toolbar: React.FC<ToolbarProps> = ({
   isRunning,
   isDebugMode,
+  debugNodeLabel,
   isDirty,
   onExecute,
   onStop,
@@ -53,6 +55,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onTriggerActivate,
   onTriggerDeactivate,
 }) => {
+  const statusText = isRunning
+    ? undefined
+    : undefined;
+  const resolvedStatusText = isDebugMode && debugNodeLabel
+      ? l10n.t("Paused: {0}", debugNodeLabel)
+      : isDebugMode
+        ? l10n.t("Debug Mode")
+        : isRunning
+          ? l10n.t("Running...")
+          : isDirty
+            ? l10n.t("Unsaved changes")
+            : "";
+
   return (
     <div data-testid="toolbar" className="fr-toolbar">
       {!isDebugMode && (
@@ -179,7 +194,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </button>
       )}
       <span className="fr-toolbar-status">
-        {isRunning ? l10n.t("Running...") : isDebugMode ? l10n.t("Debug Mode") : isDirty ? l10n.t("Unsaved changes") : ""}
+        {resolvedStatusText}
       </span>
     </div>
   );

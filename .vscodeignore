@@ -24,9 +24,7 @@ coverage/
 # User data
 .flowrunner/
 
-# Documentation (not needed in extension package)
-docs/
-README.ja.md
+# Documentation source only
 tools/
 
 # Node modules (vsce bundles dependencies automatically)

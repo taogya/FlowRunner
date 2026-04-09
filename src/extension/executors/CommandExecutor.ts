@@ -102,12 +102,13 @@ export class CommandExecutor implements INodeExecutor {
       let settled = false;
 
       const nodeId = context.nodeId;
+      const nodeDisplayName = context.nodeLabel?.trim() || nodeId;
       child.stdout.on("data", (chunk: Buffer) => {
         const text = chunk.toString();
         stdout += text;
         if (oc) {
           for (const line of text.split("\n").filter((l: string) => l)) {
-            oc.appendLine(`  │ (${nodeId}) ${line}`);
+            oc.appendLine(`  │ (${nodeDisplayName}) ${line}`);
           }
         }
       });
@@ -117,7 +118,7 @@ export class CommandExecutor implements INodeExecutor {
         stderr += text;
         if (oc) {
           for (const line of text.split("\n").filter((l: string) => l)) {
-            oc.appendLine(`  │ (${nodeId}) [stderr] ${line}`);
+            oc.appendLine(`  │ (${nodeDisplayName}) [stderr] ${line}`);
           }
         }
       });

@@ -1,4 +1,5 @@
 // Trace: BD-04-004001 Mock implementation
+import type { HistoryRecordsWithDiagnostics } from "@extension/interfaces/HistoryRecordsWithDiagnostics.js";
 import type { IHistoryService } from "@extension/interfaces/IHistoryService.js";
 import type {
   ExecutionRecord,
@@ -29,6 +30,13 @@ export class MockHistoryService implements IHistoryService {
         duration: r.duration,
         status: r.status,
       }));
+  }
+
+  async getRecordsWithDiagnostics(flowId: string): Promise<HistoryRecordsWithDiagnostics> {
+    return {
+      summaries: await this.getRecords(flowId),
+      unreadableCount: 0,
+    };
   }
 
   async getRecord(recordId: string): Promise<ExecutionRecord> {

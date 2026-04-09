@@ -160,6 +160,7 @@ export class ExecutionService {
         const inputs = buildInputs(node.id, flow.edges, outputMap);
         const context: IExecutionContext = {
           nodeId: node.id,
+          nodeLabel: node.label,
           settings: node.settings,
           inputs,
           flowId,
@@ -479,6 +480,7 @@ export class ExecutionService {
         const bodyInputs = buildInputs(bodyNode.id, edges, outputMap);
         const bodyContext: IExecutionContext = {
           nodeId: bodyNode.id,
+          nodeLabel: bodyNode.label,
           settings: bodyNode.settings,
           inputs: bodyInputs,
           flowId,
@@ -568,6 +570,7 @@ export class ExecutionService {
       const inputs = buildInputs(bodyNode.id, edges, outputMap);
       const context: IExecutionContext = {
         nodeId: bodyNode.id,
+        nodeLabel: bodyNode.label,
         settings: bodyNode.settings,
         inputs,
         flowId,
@@ -620,6 +623,7 @@ export class ExecutionService {
         const inputs = buildInputs(catchNode.id, edges, outputMap);
         const context: IExecutionContext = {
           nodeId: catchNode.id,
+          nodeLabel: catchNode.label,
           settings: catchNode.settings,
           inputs,
           flowId,
@@ -706,6 +710,7 @@ export class ExecutionService {
           const inputs = buildInputs(bodyNode.id, edges, branchOutputMap);
           const context: IExecutionContext = {
             nodeId: bodyNode.id,
+            nodeLabel: bodyNode.label,
             settings: bodyNode.settings,
             inputs,
             flowId,

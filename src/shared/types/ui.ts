@@ -8,7 +8,7 @@
 export interface FlowTreeItem {
   id: string;
   label: string;
-  type: "flow" | "folder" | "history";
+  type: "flow" | "folder" | "history" | "emptyState";
   description: string;
   parentId?: string;
 }

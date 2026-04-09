@@ -8,7 +8,7 @@ FlowRunner は Visual Studio Code 向けのノードベース ワークフロー
 
 1. VS Code を開き、FlowRunner 拡張機能をインストール
 2. アクティビティバー（左サイドバー）の **FlowRunner** アイコンをクリック
-3. フローリストパネルの **Create Flow** をクリック
+3. フローリストパネルの **Create Flow** をクリックし、**Blank Flow** / **Starter Template** / **Recent Template** から開始方法を選択
 4. ビジュアルエディタでワークフローを設計
 5. **Execute**（▶）をクリックしてフローを実行
 
@@ -57,13 +57,14 @@ FlowRunner は Visual Studio Code 向けのノードベース ワークフロー
 
 キャンバス、ノード、エッジを右クリックすると、Auto Layout、削除などのコンテキストメニューが表示されます。
 
-### プロパティパネル
+### 右サイドバー
 
-ノードを選択すると、右パネルにプロパティが表示されます。ノードの種類に応じた設定フィールドが表示されます。
+右サイドバーには、実行状況の可視化とノード詳細がまとまって表示されます。
 
-### 出力パネル
-
-実行後、ノードを選択すると右パネル（出力タブ）に出力結果が表示されます。エラーの詳細もここに表示されます。
+- **Latest Execution Summary** — 最新実行の各ノードを実行順に表示し、status、duration、1 行要約を確認できます。項目クリックでノード選択とフォーカスが行われます。
+- **Execution Analytics** — 直近実行の成功 / 失敗件数、成功率、平均実行時間、recent failures、slowest node を表示します。
+- **Flow Dependencies** — 呼び出し先 / 呼び出し元の subflow 関係と依存 warning を表示します。
+- **Property Panel** — ノード選択時は同じ右サイドバー内に、対象ノードの **Settings** セクションと **Output** セクションが折りたたみ可能な形で表示されます。
 
 ---
 
@@ -292,9 +293,10 @@ Glob パターンに一致するファイルが変更されると、フローが
 
 | コマンド | 説明 |
 |---------|-------------|
-| FlowRunner: Create Flow | 新しい空のフローを作成 |
-| FlowRunner: Create Flow from Template | 保存済みテンプレートからフローを作成 |
+| FlowRunner: Create Flow | Blank Flow / Starter Template / Recent Template の作成方法を選択する |
+| FlowRunner: Create Flow from Template | テンプレート選択を直接開く |
 | FlowRunner: Save Flow as Template | 現在のフローを再利用可能なテンプレートとして保存 |
+| FlowRunner: Duplicate Flow | 選択中のフローを新しい ID で複製 |
 | FlowRunner: Export Flow | フローを JSON ファイルにエクスポート |
 | FlowRunner: Import Flow | JSON ファイルからフローをインポート |
 | FlowRunner: Execute Flow | 現在のフローを実行 |

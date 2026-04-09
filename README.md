@@ -4,18 +4,20 @@ A node-based workflow execution extension for Visual Studio Code.
 
 ## Features
 
-- **Visual Flow Editor** — Design workflows using a drag-and-drop node graph (powered by React Flow)
-- **Flow Execution** — Run workflows directly from VS Code
-- **Debug Support** — Step through flows with debug capabilities
-- **Flow Management** — Create, rename, delete, and organize flows from the activity bar
-- **Auto Save** — Optionally auto-save flow changes
-- **Execution History** — Track and review past flow executions
+- **Visual Flow Editor** — Design workflows with drag-and-drop editing, auto layout, alignment, and copy/paste/duplicate tools
+- **13 Built-in Nodes** — Trigger, Command, Log, AI Prompt, Condition, Loop, SubFlow, File, HTTP, Transform, Comment, Try/Catch, and Parallel
+- **Flow Creation Paths** — Start from Blank Flow, Starter Template, or Recent Template
+- **Execution and Debugging** — Run flows with preflight validation and step-debug them directly in VS Code
+- **Right Sidebar Insights** — Review Latest Execution Summary, Execution Analytics, Flow Dependencies, and node Settings/Output in one place
+- **Flow Management and History** — Duplicate, rename, import/export, trigger-manage, and retain execution history
 - **i18n** — English and Japanese language support
+
+![flow_executed](./docs/resources/flow_executed.png)
 
 ## Getting Started
 
 1. Open the **FlowRunner** panel from the activity bar
-2. Click **Create Flow** to start a new workflow
+2. Click **Create Flow** and choose **Blank Flow**, **Starter Template**, or **Recent Template**
 3. Add and connect nodes in the visual editor
 4. Execute your flow with the **Execute Flow** command
 

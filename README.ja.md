@@ -4,18 +4,20 @@ Visual Studio Code 向けのノードベース ワークフロー実行拡張機
 
 ## 特徴
 
-- **ビジュアルフローエディタ** — ドラッグ＆ドロップのノードグラフでワークフローを設計（React Flow 搭載）
-- **フロー実行** — VS Code 上でワークフローを直接実行
-- **デバッグ対応** — ステップ実行によるデバッグ機能
-- **フロー管理** — アクティビティバーからフローの作成・リネーム・削除・整理が可能
-- **自動保存** — フローの変更を自動保存するオプション
-- **実行履歴** — 過去のフロー実行結果を追跡・確認
+- **ビジュアルフローエディタ** — ドラッグ＆ドロップ編集、Auto Layout、整列、コピー / ペースト / 複製に対応
+- **13 種のビルトインノード** — Trigger, Command, Log, AI Prompt, Condition, Loop, SubFlow, File, HTTP, Transform, Comment, Try/Catch, Parallel を搭載
+- **作成導線の選択** — Blank Flow、Starter Template、Recent Template から開始可能
+- **実行とデバッグ** — 実行前バリデーションとステップ実行デバッグに対応
+- **右パネルの可視化** — Latest Execution Summary、Execution Analytics、Flow Dependencies、ノード Settings / Output を集約表示
+- **フロー管理と履歴** — 複製、リネーム、インポート / エクスポート、トリガー管理、実行履歴保持をサポート
 - **多言語対応** — 日本語・英語をサポート
+
+![flow_executed](./docs/resources/flow_executed.png)
 
 ## はじめに
 
 1. アクティビティバーから **FlowRunner** パネルを開く
-2. **Create Flow** をクリックして新しいワークフローを作成
+2. **Create Flow** をクリックし、**Blank Flow** / **Starter Template** / **Recent Template** から開始方法を選ぶ
 3. ビジュアルエディタでノードを追加・接続
 4. **Execute Flow** コマンドでフローを実行
 

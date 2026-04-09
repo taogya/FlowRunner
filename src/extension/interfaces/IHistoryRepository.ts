@@ -1,4 +1,5 @@
 // Trace: BD-04-004004
+import type { HistoryRecordsWithDiagnostics } from "@extension/interfaces/HistoryRecordsWithDiagnostics.js";
 import type { ExecutionRecord, ExecutionSummary } from "@shared/types/execution.js";
 
 /**
@@ -14,6 +15,9 @@ export interface IHistoryRepository {
 
   /** 指定フローの実行履歴サマリ一覧を取得する */
   list(flowId: string): Promise<ExecutionSummary[]>;
+
+  /** 指定フローの実行履歴サマリ一覧と unreadable 件数を取得する */
+  listWithDiagnostics?(flowId: string): Promise<HistoryRecordsWithDiagnostics>;
 
   /** 実行記録を削除する */
   delete(recordId: string): Promise<void>;
