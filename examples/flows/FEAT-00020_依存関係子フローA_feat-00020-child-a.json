@@ -1,0 +1,56 @@
+{
+  "id": "feat-00020-child-a",
+  "name": "FEAT-00020 依存関係子フローA",
+  "description": "依存関係ビュー確認用。親フローから参照され、子フローBを呼び出す。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "使い方",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. このフローでは呼び出し元に親フローが表示されます\n2. 呼び出し先に子フローBが表示されます"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 180
+      },
+      "settings": {}
+    },
+    {
+      "id": "subflow-b",
+      "type": "subFlow",
+      "label": "子フローB呼び出し",
+      "enabled": true,
+      "position": {
+        "x": 240,
+        "y": 180
+      },
+      "settings": {
+        "flowId": "feat-00020-child-b"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "subflow-b",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-08T00:00:00.000Z",
+  "updatedAt": "2026-04-09T16:12:24.616Z"
+}

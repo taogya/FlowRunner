@@ -1,0 +1,57 @@
+{
+  "id": "feat-00020-child-b",
+  "name": "FEAT-00020 依存関係子フローB",
+  "description": "依存関係ビュー確認用。子フローAから参照される終端フロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "使い方",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. このフローでは呼び出し元に子フローAが表示されます\n2. 呼び出し先はないため空状態を確認できます"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 180
+      },
+      "settings": {}
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "終了ログ",
+      "enabled": true,
+      "position": {
+        "x": 220,
+        "y": 180
+      },
+      "settings": {
+        "message": "child-b",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-08T00:00:00.000Z",
+  "updatedAt": "2026-04-07T16:37:21.458Z"
+}

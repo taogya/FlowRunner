@@ -1,0 +1,239 @@
+{
+  "id": "rs12-http-file",
+  "name": "RS12 HTTP+ファイル操作",
+  "description": "RSST: HTTPリクエストノード(body/statusポート)とファイル操作ノード(operation/path/encoding設定)を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. HTTPノードのポート: in→body, status出力\n2. HTTP設定: url, method(GET/POST/PUT/DELETE/PATCH), headers, body, auth, authToken, timeout\n3. ファイルノードのポート: in→out\n4. ファイル設定: operation(read/write/append/delete/exists/listDir), path, encoding(utf-8/ascii/base64)\n5. HTTPは実fetch、ファイルは実FS操作を実行"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "http-get",
+      "type": "http",
+      "label": "HTTP GET",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 150
+      },
+      "settings": {
+        "url": "https://example.com",
+        "method": "GET",
+        "headers": {},
+        "body": "",
+        "auth": "none",
+        "authToken": "",
+        "timeout": 30
+      }
+    },
+    {
+      "id": "log-body",
+      "type": "log",
+      "label": "レスポンスボディ",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 100
+      },
+      "settings": {
+        "message": "body: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-status",
+      "type": "log",
+      "label": "ステータスコード",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 230
+      },
+      "settings": {
+        "message": "status: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "http-post",
+      "type": "http",
+      "label": "HTTP POST Bearer",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 350
+      },
+      "settings": {
+        "url": "https://example.com",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"key\":\"value\"}",
+        "auth": "bearer",
+        "authToken": "example-bearer-token",
+        "timeout": 10
+      }
+    },
+    {
+      "id": "log-post",
+      "type": "log",
+      "label": "POST結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 350
+      },
+      "settings": {
+        "message": "POST body: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "file-read",
+      "type": "file",
+      "label": "ファイル読取",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 500
+      },
+      "settings": {
+        "operation": "read",
+        "path": "test.txt",
+        "encoding": "utf-8"
+      }
+    },
+    {
+      "id": "log-file",
+      "type": "log",
+      "label": "ファイル内容",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 500
+      },
+      "settings": {
+        "message": "file: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "file-write",
+      "type": "file",
+      "label": "ファイル書込",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 650
+      },
+      "settings": {
+        "operation": "write",
+        "path": "test-out.txt",
+        "encoding": "utf-8"
+      }
+    },
+    {
+      "id": "log-write",
+      "type": "log",
+      "label": "書込結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 650
+      },
+      "settings": {
+        "message": "write result: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "http-get",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "http-get",
+      "sourcePortId": "body",
+      "targetNodeId": "log-body",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "http-get",
+      "sourcePortId": "status",
+      "targetNodeId": "log-status",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "http-post",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "http-post",
+      "sourcePortId": "body",
+      "targetNodeId": "log-post",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e6",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "file-read",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e7",
+      "sourceNodeId": "file-read",
+      "sourcePortId": "out",
+      "targetNodeId": "log-file",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e8",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "file-write",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e9",
+      "sourceNodeId": "file-write",
+      "sourcePortId": "out",
+      "targetNodeId": "log-write",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-01T15:17:12.580Z"
+}

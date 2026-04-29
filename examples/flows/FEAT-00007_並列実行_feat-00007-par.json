@@ -1,0 +1,200 @@
+{
+  "id": "feat-00007-par",
+  "name": "FEAT-00007 並列実行",
+  "description": "Parallel ノードを使用した並列実行のサンプルフロー。入力を3つのブランチに分岐し、各ブランチの処理が全て完了後に done ポートへ出力する。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "trigger",
+      "label": "手動トリガー",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "comment-1",
+      "type": "comment",
+      "label": "説明",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "text": "Parallel ノードのサンプル。\n入力を3つのブランチに分岐し、各ブランチで異なるコマンドを実行。\n全ブランチ完了後に done ポートから結果を出力する。"
+      }
+    },
+    {
+      "id": "parallel-1",
+      "type": "parallel",
+      "label": "並列実行",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "sleep-b1",
+      "type": "command",
+      "label": "ブランチ1: Sleep 1秒",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "settings": {
+        "command": "sleep 1"
+      }
+    },
+    {
+      "id": "log-b1",
+      "type": "log",
+      "label": "ブランチ1: ログ",
+      "enabled": true,
+      "position": {
+        "x": 750,
+        "y": 50
+      },
+      "settings": {
+        "message": "ブランチ1を実行中（1秒後）",
+        "level": "info"
+      }
+    },
+    {
+      "id": "sleep-b2",
+      "type": "command",
+      "label": "ブランチ2: Sleep 2秒",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "settings": {
+        "command": "sleep 2"
+      }
+    },
+    {
+      "id": "log-b2",
+      "type": "log",
+      "label": "ブランチ2: ログ",
+      "enabled": true,
+      "position": {
+        "x": 750,
+        "y": 200
+      },
+      "settings": {
+        "message": "ブランチ2を実行中（2秒後）",
+        "level": "info"
+      }
+    },
+    {
+      "id": "sleep-b3",
+      "type": "command",
+      "label": "ブランチ3: Sleep 3秒",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 350
+      },
+      "settings": {
+        "command": "sleep 3"
+      }
+    },
+    {
+      "id": "log-b3",
+      "type": "log",
+      "label": "ブランチ3: ログ",
+      "enabled": true,
+      "position": {
+        "x": 750,
+        "y": 350
+      },
+      "settings": {
+        "message": "ブランチ3を実行中（3秒後）",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-done",
+      "type": "log",
+      "label": "完了ログ",
+      "enabled": true,
+      "position": {
+        "x": 502.3134328358209,
+        "y": 537.2014925373135
+      },
+      "settings": {
+        "message": "全ブランチ完了: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-trigger-par",
+      "sourceNodeId": "trigger-1",
+      "sourcePortId": "out",
+      "targetNodeId": "parallel-1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-par-b1",
+      "sourceNodeId": "parallel-1",
+      "sourcePortId": "branch1",
+      "targetNodeId": "sleep-b1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-par-b2",
+      "sourceNodeId": "parallel-1",
+      "sourcePortId": "branch2",
+      "targetNodeId": "sleep-b2",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-par-b3",
+      "sourceNodeId": "parallel-1",
+      "sourcePortId": "branch3",
+      "targetNodeId": "sleep-b3",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-par-done",
+      "sourceNodeId": "parallel-1",
+      "sourcePortId": "done",
+      "targetNodeId": "log-done",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-sleep-b1-log-b1-1775145391697",
+      "sourceNodeId": "sleep-b1",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-b1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-sleep-b2-log-b2-1775145394414",
+      "sourceNodeId": "sleep-b2",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-b2",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-sleep-b3-log-b3-1775145396430",
+      "sourceNodeId": "sleep-b3",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-b3",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-14T00:00:00.000Z",
+  "updatedAt": "2026-04-09T16:12:29.616Z"
+}

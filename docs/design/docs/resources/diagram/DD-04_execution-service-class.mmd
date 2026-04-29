@@ -1,0 +1,43 @@
+classDiagram
+    class IExecutionService {
+        <<interface>>
+        +executeFlow(flowId: string) Promise~void~
+        +stopFlow(flowId: string) void
+        +getRunningFlows() string[]
+        +isRunning(flowId: string) boolean
+        +onFlowEvent(handler) Disposable
+    }
+
+    class ExecutionService {
+        -flowService: IFlowService
+        -executorRegistry: INodeExecutorRegistry
+        -historyService: IHistoryService
+        -outputChannel: OutputChannel
+        -runningFlows: Map~string, AbortController~
+        -emitter: EventEmitter~FlowEvent~
+        -errorPolicy: string
+        +executeFlow(flowId: string) Promise~void~
+        +stopFlow(flowId: string) void
+        +getRunningFlows() string[]
+        +isRunning(flowId: string) boolean
+        +onFlowEvent(handler) Disposable
+        -topologicalSort(nodes, edges) NodeInstance[]
+        -buildInputs(targetNodeId, edges, outputMap) PortDataMap
+        -handleNodeError(flowId, nodeId, error) boolean
+    }
+
+    IExecutionService <|.. ExecutionService
+
+    ExecutionService --> IFlowService : flowService
+    ExecutionService --> INodeExecutorRegistry : executorRegistry
+    ExecutionService --> IHistoryService : historyService
+
+    class IFlowService {
+        <<interface>>
+    }
+    class INodeExecutorRegistry {
+        <<interface>>
+    }
+    class IHistoryService {
+        <<interface>>
+    }

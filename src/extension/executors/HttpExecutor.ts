@@ -52,7 +52,7 @@ export class HttpExecutor implements INodeExecutor {
       { id: "status", label: "ステータスコード", dataType: "number" },
     ],
     settingsSchema: [
-      { key: "url", label: "URL", type: "string", required: true, placeholder: "https://api.example.com/{{input.id}}", description: "テンプレート {{input}}, {{vars.xxx}} が使用可能" },
+      { key: "url", label: "URL", type: "string", required: true, placeholder: "https://example.com/{{input.id}}", description: "テンプレート {{input}}, {{vars.xxx}} が使用可能" },
       { key: "method", label: "メソッド", type: "select", required: false, defaultValue: "GET", options: [{ value: "GET", label: "GET" }, { value: "POST", label: "POST" }, { value: "PUT", label: "PUT" }, { value: "DELETE", label: "DELETE" }, { value: "PATCH", label: "PATCH" }] },
       { key: "headers", label: "ヘッダー", type: "keyValue", required: false },
       { key: "body", label: "ボディ", type: "text", required: false, description: "テンプレート {{input}}, {{vars.xxx}} が使用可能" },

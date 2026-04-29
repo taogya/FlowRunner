@@ -1,0 +1,182 @@
+{
+  "id": "rs07-transform-types",
+  "name": "RS07 データ変換",
+  "description": "RSST: Transformノードの各変換種別を検証。jsonParse, jsonStringify, template, jsExpression等",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. jsonParse: 文字列→オブジェクト\n2. template: {{input.key}}でプロパティ参照\n3. jsExpression: JS式でデータ加工\n4. outポートに変換結果が出力される"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd",
+      "type": "command",
+      "label": "JSONデータ生成",
+      "enabled": true,
+      "position": {
+        "x": 200,
+        "y": 200
+      },
+      "settings": {
+        "command": "echo '{\"name\":\"FlowRunner\",\"version\":\"1.0\"}'"
+      }
+    },
+    {
+      "id": "t_parse",
+      "type": "transform",
+      "label": "JSON解析",
+      "enabled": true,
+      "position": {
+        "x": 450,
+        "y": 120
+      },
+      "settings": {
+        "transformType": "jsonParse",
+        "expression": "JSON.parse(input)"
+      }
+    },
+    {
+      "id": "t_expr",
+      "type": "transform",
+      "label": "JS式加工",
+      "enabled": true,
+      "position": {
+        "x": 700,
+        "y": 120
+      },
+      "settings": {
+        "transformType": "jsExpression",
+        "expression": "({ ...input, processed: true })"
+      }
+    },
+    {
+      "id": "t_stringify",
+      "type": "transform",
+      "label": "JSON文字列化",
+      "enabled": true,
+      "position": {
+        "x": 950,
+        "y": 120
+      },
+      "settings": {
+        "transformType": "jsonStringify",
+        "expression": "JSON.stringify(input, null, 2)"
+      }
+    },
+    {
+      "id": "log1",
+      "type": "log",
+      "label": "結果ログ",
+      "enabled": true,
+      "position": {
+        "x": 1200,
+        "y": 120
+      },
+      "settings": {
+        "message": "{{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "t_template",
+      "type": "transform",
+      "label": "テンプレート変換",
+      "enabled": true,
+      "position": {
+        "x": 700,
+        "y": 280
+      },
+      "settings": {
+        "transformType": "template",
+        "expression": "名前: {{input.name}} バージョン: {{input.version}}"
+      }
+    },
+    {
+      "id": "log2",
+      "type": "log",
+      "label": "テンプレート結果",
+      "enabled": true,
+      "position": {
+        "x": 950,
+        "y": 280
+      },
+      "settings": {
+        "message": "{{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "t_parse",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "t_parse",
+      "sourcePortId": "out",
+      "targetNodeId": "t_expr",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "t_expr",
+      "sourcePortId": "out",
+      "targetNodeId": "t_stringify",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "t_stringify",
+      "sourcePortId": "out",
+      "targetNodeId": "log1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e6",
+      "sourceNodeId": "t_parse",
+      "sourcePortId": "out",
+      "targetNodeId": "t_template",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e7",
+      "sourceNodeId": "t_template",
+      "sourcePortId": "out",
+      "targetNodeId": "log2",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-01T15:17:08.706Z"
+}

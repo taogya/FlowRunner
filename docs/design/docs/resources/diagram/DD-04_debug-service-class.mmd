@@ -1,0 +1,47 @@
+classDiagram
+    class IDebugService {
+        <<interface>>
+        +startDebug(flowId: string) Promise~void~
+        +step() Promise~void~
+        +stopDebug() void
+        +isDebugging() boolean
+        +getIntermediateResults() NodeResultMap
+        +onDebugEvent(handler) Disposable
+    }
+
+    class DebugService {
+        -flowService: IFlowService
+        -executorRegistry: INodeExecutorRegistry
+        -historyService: IHistoryService
+        -debugging: boolean
+        -currentFlowId: string
+        -sortedNodes: NodeInstance[]
+        -cursor: number
+        -intermediateResults: NodeResultMap
+        -outputMap: Map~string, PortDataMap~
+        -edges: EdgeInstance[]
+        -startedAt: string
+        -emitter: EventEmitter~DebugEvent~
+        +startDebug(flowId: string) Promise~void~
+        +step() Promise~void~
+        +stopDebug() void
+        +isDebugging() boolean
+        +getIntermediateResults() NodeResultMap
+        +onDebugEvent(handler) Disposable
+    }
+
+    IDebugService <|.. DebugService
+
+    DebugService --> IFlowService : flowService
+    DebugService --> INodeExecutorRegistry : executorRegistry
+    DebugService --> IHistoryService : historyService
+
+    class IFlowService {
+        <<interface>>
+    }
+    class INodeExecutorRegistry {
+        <<interface>>
+    }
+    class IHistoryService {
+        <<interface>>
+    }

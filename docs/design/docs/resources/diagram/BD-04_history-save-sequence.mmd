@@ -1,0 +1,25 @@
+sequenceDiagram
+    participant ES as ExecutionService
+    participant HS as HistoryService
+    participant HR as HistoryRepository
+    participant MB as MessageBroker
+
+    ES->>ES: フロー実行完了
+    ES->>ES: ExecutionRecord 構築<br>(全ノード結果を集約)
+    ES->>HS: saveRecord(record)
+    HS->>HS: cleanupOldRecords(flowId)
+    HS->>HR: count(flowId)
+    HR-->>HS: 現在の履歴件数
+
+    alt 保持件数超過
+        HS->>HR: list(flowId)
+        HR-->>HS: 履歴一覧(日時順)
+        HS->>HR: delete(最古レコードID)
+    end
+
+    HS->>HR: save(record)
+    HR-->>HS: 保存完了
+    HS-->>ES: 保存完了
+
+    ES->>MB: execution:flowCompleted
+    MB->>MB: VSCode 通知表示<br>(成功/失敗)

@@ -1,0 +1,36 @@
+graph TB
+    subgraph vscode["VSCode サイドバー"]
+        direction TB
+        ACTBAR["アクティビティバー<br/>FlowRunner アイコン"]:::blue
+        TREEVIEW["TreeView<br/>flowrunner.flowList"]:::green
+    end
+
+    subgraph provider["FlowTreeProvider"]
+        direction TB
+        TDP["TreeDataProvider<br/>実装"]:::green
+        GETCHILDREN["getChildren<br/>フロー一覧取得"]:::amber
+        GETTREEITEM["getTreeItem<br/>表示項目生成"]:::amber
+        REFRESH["refresh<br/>ビュー更新"]:::amber
+    end
+
+    subgraph items["TreeItem 構造"]
+        direction TB
+        FOLDER["FlowFolderItem<br/>フォルダグループ"]:::purple
+        FLOW["FlowItem<br/>フロー項目"]:::purple
+    end
+
+    subgraph svc["依存サービス"]
+        FLOWSVC["FlowService"]:::neutral
+        CMDREG["CommandRegistry"]:::neutral
+    end
+
+    ACTBAR --> TREEVIEW
+    TREEVIEW --> TDP
+    TDP --> GETCHILDREN
+    TDP --> GETTREEITEM
+    TDP --> REFRESH
+    GETCHILDREN --> FLOWSVC
+    GETTREEITEM --> FOLDER
+    GETTREEITEM --> FLOW
+    FLOW -->|"ダブルクリック"| CMDREG
+    FLOW -->|"コンテキストメニュー"| CMDREG

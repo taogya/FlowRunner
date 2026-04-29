@@ -1,0 +1,119 @@
+{
+  "id": "feat-00006-tc",
+  "name": "FEAT-00006 エラーハンドリング",
+  "description": "TryCatch ノードを使用したエラーハンドリングのサンプルフロー。Try 本体でエラーが発生した場合、Catch ブランチで処理を継続する。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "trigger",
+      "label": "手動トリガー",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 150
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "comment-1",
+      "type": "comment",
+      "label": "説明",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "text": "TryCatch ノードのサンプル。\nTry 側でコマンドを実行し、失敗時は Catch 側でエラーログを出力。\n完了ポートは Try/Catch どちらでも最後に通過する。"
+      }
+    },
+    {
+      "id": "trycatch-1",
+      "type": "tryCatch",
+      "label": "エラーハンドリング",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 150
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd-try",
+      "type": "command",
+      "label": "Try: 存在しないコマンド",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 50
+      },
+      "settings": {
+        "command": "nonexistent-command-12345",
+        "cwd": "."
+      }
+    },
+    {
+      "id": "log-catch",
+      "type": "log",
+      "label": "Catch: エラーログ",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "settings": {
+        "message": "エラーをキャッチ: {{input}}",
+        "level": "warn"
+      }
+    },
+    {
+      "id": "log-done",
+      "type": "log",
+      "label": "完了ログ",
+      "enabled": true,
+      "position": {
+        "x": 519.1977611940299,
+        "y": 346.4925373134328
+      },
+      "settings": {
+        "message": "エラーハンドリング完了",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-trigger-tc",
+      "sourceNodeId": "trigger-1",
+      "sourcePortId": "out",
+      "targetNodeId": "trycatch-1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-tc-try",
+      "sourceNodeId": "trycatch-1",
+      "sourcePortId": "try",
+      "targetNodeId": "cmd-try",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-tc-catch",
+      "sourceNodeId": "trycatch-1",
+      "sourcePortId": "catch",
+      "targetNodeId": "log-catch",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-tc-done",
+      "sourceNodeId": "trycatch-1",
+      "sourcePortId": "done",
+      "targetNodeId": "log-done",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-14T00:00:00.000Z",
+  "updatedAt": "2026-04-04T02:37:47.324Z"
+}

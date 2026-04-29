@@ -1,0 +1,92 @@
+{
+  "id": "feat-00014-api",
+  "name": "FEAT-00014 API疎通確認スターター",
+  "description": "HTTP GET で API の応答を確認するスターターフロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide-url",
+      "type": "comment",
+      "label": "URL を変更",
+      "enabled": true,
+      "position": {
+        "x": 80,
+        "y": 20
+      },
+      "settings": {
+        "comment": "1. HTTP ノードの URL を確認したいエンドポイントへ変更します。"
+      }
+    },
+    {
+      "id": "guide-api-log",
+      "type": "comment",
+      "label": "見る場所",
+      "enabled": true,
+      "position": {
+        "x": 640,
+        "y": 20
+      },
+      "settings": {
+        "comment": "2. Log ノードでレスポンス本文を確認し、必要なら次に Transform を追加します。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 100,
+        "y": 140
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "http",
+      "type": "http",
+      "label": "HTTP GET",
+      "enabled": true,
+      "position": {
+        "x": 360,
+        "y": 140
+      },
+      "settings": {
+        "method": "GET",
+        "url": "https://example.com"
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "Response Body",
+      "enabled": true,
+      "position": {
+        "x": 640,
+        "y": 140
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "http",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "http",
+      "sourcePortId": "body",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-07T16:17:51.910Z"
+}

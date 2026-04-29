@@ -1,0 +1,99 @@
+{
+  "id": "rs04-loop-count",
+  "name": "RS04 ループ（カウント）",
+  "description": "RSST: Loopノードのcountモード。bodyポートに反復インデックス、doneポートに完了通知を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. count=3で3回ループ\n2. bodyポートに {index: 0}, {index: 1}, {index: 2} が配列で出力\n3. doneポートに {iterations: 3} が出力\n4. bodyとdoneの両ポートが別々のLogに接続可能"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "loop",
+      "type": "loop",
+      "label": "3回ループ",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "settings": {
+        "loopType": "count",
+        "count": 3
+      }
+    },
+    {
+      "id": "log_body",
+      "type": "log",
+      "label": "body確認",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 120
+      },
+      "settings": {
+        "message": "loop body: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log_done",
+      "type": "log",
+      "label": "done確認",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 280
+      },
+      "settings": {
+        "message": "loop done: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "loop",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "loop",
+      "sourcePortId": "body",
+      "targetNodeId": "log_body",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "loop",
+      "sourcePortId": "done",
+      "targetNodeId": "log_done",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-02T11:55:43.782Z"
+}

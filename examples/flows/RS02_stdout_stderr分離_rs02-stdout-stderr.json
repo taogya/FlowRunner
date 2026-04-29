@@ -1,0 +1,98 @@
+{
+  "id": "rs02-stdout-stderr",
+  "name": "RS02 stdout/stderr分離",
+  "description": "RSST: Commandのstdout/stderrポートが別々のLogに正しくルーティングされることを検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. stdoutポートに標準出力が流れる\n2. stderrポートに標準エラーが流れる\n3. 2つのLogが別々のデータを受信"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd",
+      "type": "command",
+      "label": "stdout+stderr出力",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "settings": {
+        "command": "echo STDOUT_DATA && echo STDERR_DATA >&2"
+      }
+    },
+    {
+      "id": "log_out",
+      "type": "log",
+      "label": "stdout確認",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 120
+      },
+      "settings": {
+        "message": "stdout: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log_err",
+      "type": "log",
+      "label": "stderr確認",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 280
+      },
+      "settings": {
+        "message": "stderr: {{input}}",
+        "level": "warn"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log_out",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stderr",
+      "targetNodeId": "log_err",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-07T15:39:57.374Z"
+}

@@ -1,0 +1,139 @@
+{
+  "id": "rs05-loop-condition",
+  "name": "RS05 ループ（条件式）",
+  "description": "RSST: Loopノードのconditionモード。条件式がtrueの間ループ継続を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. conditionモードでexpression評価\n2. 入力データをinputとして参照できる\n3. MAX_ITERATIONS(10000)で無限ループ防止"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd",
+      "type": "command",
+      "label": "配列データ生成",
+      "enabled": true,
+      "position": {
+        "x": 200,
+        "y": 200
+      },
+      "settings": {
+        "command": "echo '[1,2,3]'"
+      }
+    },
+    {
+      "id": "transform",
+      "type": "transform",
+      "label": "JSON解析",
+      "enabled": true,
+      "position": {
+        "x": 400,
+        "y": 200
+      },
+      "settings": {
+        "transformType": "jsonParse"
+      }
+    },
+    {
+      "id": "loop",
+      "type": "loop",
+      "label": "条件ループ",
+      "enabled": true,
+      "position": {
+        "x": 600,
+        "y": 200
+      },
+      "settings": {
+        "loopType": "condition",
+        "expression": "index < input|length"
+      }
+    },
+    {
+      "id": "log_body",
+      "type": "log",
+      "label": "body確認",
+      "enabled": true,
+      "position": {
+        "x": 850,
+        "y": 120
+      },
+      "settings": {
+        "message": "condition body: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log_done",
+      "type": "log",
+      "label": "done確認",
+      "enabled": true,
+      "position": {
+        "x": 850,
+        "y": 280
+      },
+      "settings": {
+        "message": "condition done: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "transform",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "transform",
+      "sourcePortId": "out",
+      "targetNodeId": "loop",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "loop",
+      "sourcePortId": "body",
+      "targetNodeId": "log_body",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "loop",
+      "sourcePortId": "done",
+      "targetNodeId": "log_done",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-01T15:17:07.551Z"
+}

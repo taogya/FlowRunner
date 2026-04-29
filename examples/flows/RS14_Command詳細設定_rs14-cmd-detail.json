@@ -1,0 +1,248 @@
+{
+  "id": "rs14-cmd-detail",
+  "name": "RS14 Command詳細設定",
+  "description": "RSST: Commandノードのcwd/shell/env/timeout設定を網羅的に検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. cwd設定: 作業ディレクトリ指定\n2. shell設定: zsh/bash指定\n3. env設定: 環境変数追加\n4. timeout設定: タイムアウト秒数\n5. stderrポート: エラー出力の分離"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd-cwd",
+      "type": "command",
+      "label": "cwd指定",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 150
+      },
+      "settings": {
+        "command": "pwd",
+        "cwd": "/tmp"
+      }
+    },
+    {
+      "id": "log-cwd",
+      "type": "log",
+      "label": "cwd結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 150
+      },
+      "settings": {
+        "message": "cwd結果: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "cmd-shell",
+      "type": "command",
+      "label": "shell指定(zsh)",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 300
+      },
+      "settings": {
+        "command": "echo $SHELL",
+        "shell": "zsh"
+      }
+    },
+    {
+      "id": "log-shell",
+      "type": "log",
+      "label": "shell結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 300
+      },
+      "settings": {
+        "message": "shell結果: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "cmd-env",
+      "type": "command",
+      "label": "環境変数複数",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 450
+      },
+      "settings": {
+        "command": "echo $VAR1 $VAR2",
+        "env": {
+          "VAR1": "hello",
+          "VAR2": "world"
+        }
+      }
+    },
+    {
+      "id": "log-env",
+      "type": "log",
+      "label": "env結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 450
+      },
+      "settings": {
+        "message": "env結果: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "cmd-timeout",
+      "type": "command",
+      "label": "タイムアウト(5秒)",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 600
+      },
+      "settings": {
+        "command": "echo タイムアウトテスト",
+        "timeout": 5
+      }
+    },
+    {
+      "id": "log-timeout",
+      "type": "log",
+      "label": "timeout結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 600
+      },
+      "settings": {
+        "message": "timeout結果: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "cmd-stderr",
+      "type": "command",
+      "label": "stderr出力",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 750
+      },
+      "settings": {
+        "command": "echo エラー出力 >&2"
+      }
+    },
+    {
+      "id": "log-stderr",
+      "type": "log",
+      "label": "stderr結果",
+      "enabled": true,
+      "position": {
+        "x": 550,
+        "y": 750
+      },
+      "settings": {
+        "message": "stderr: {{input}}",
+        "level": "error"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-cwd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd-cwd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-cwd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-shell",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "cmd-shell",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-shell",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-env",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e6",
+      "sourceNodeId": "cmd-env",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-env",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e7",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-timeout",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e8",
+      "sourceNodeId": "cmd-timeout",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-timeout",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e9",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-stderr",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e10",
+      "sourceNodeId": "cmd-stderr",
+      "sourcePortId": "stderr",
+      "targetNodeId": "log-stderr",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-07T16:17:43.536Z"
+}

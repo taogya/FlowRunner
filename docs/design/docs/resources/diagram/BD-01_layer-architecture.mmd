@@ -1,0 +1,41 @@
+graph TB
+    subgraph presentation["Presentation Layer（WebView — ブラウザサンドボックス）"]
+        direction LR
+        TOOLBAR["Toolbar<br/>実行/デバッグ/保存"]:::amber
+        PALETTE["NodePalette<br/>ノード種別一覧"]:::purple
+        CANVAS["FlowCanvas<br/>React Flow"]:::blue
+        PROPANEL["PropertyPanel<br/>設定/出力タブ"]:::purple
+    end
+
+    subgraph application["Application Layer（Extension Host — Node.js）"]
+        direction LR
+        CMD["CommandRegistry<br/>コマンド登録"]:::green
+        TREE["FlowTreeProvider<br/>サイドバー"]:::green
+        EDITOR["FlowEditorManager<br/>WebView 管理"]:::green
+        BROKER["MessageBroker<br/>メッセージルーティング"]:::green
+        FLOWSVC["FlowService<br/>フロー CRUD"]:::green
+        EXECSVC["ExecutionService<br/>フロー実行"]:::green
+    end
+
+    subgraph infrastructure["Infrastructure Layer（ストレージ / 外部システム）"]
+        direction LR
+        REPO["FlowRepository<br/>フロー定義 I/O"]:::neutral
+        HISTREPO["HistoryRepository<br/>実行履歴 I/O"]:::neutral
+        SHELL["ChildProcess<br/>コマンド実行"]:::neutral
+        LMAPI["VSCode LM API<br/>Copilot LLM"]:::purple
+        HTTPEXT["HTTP Client<br/>外部 API"]:::neutral
+    end
+
+    CANVAS <-->|"postMessage"| BROKER
+    TOOLBAR -->|"postMessage"| BROKER
+    PROPANEL <-->|"postMessage"| BROKER
+    BROKER --> FLOWSVC
+    BROKER --> EXECSVC
+    FLOWSVC --> REPO
+    EXECSVC --> HISTREPO
+    EXECSVC --> SHELL
+    EXECSVC --> LMAPI
+    EXECSVC --> HTTPEXT
+    CMD --> EDITOR
+    CMD --> TREE
+    TREE --> FLOWSVC

@@ -1,0 +1,41 @@
+graph TD
+    subgraph ext["Extension Host"]
+        MAIN["ExtensionMain<br/>エントリーポイント"]:::blue
+        CMD["CommandRegistry"]:::green
+        TREE["FlowTreeProvider"]:::green
+        EDITOR["FlowEditorManager"]:::green
+        BROKER["MessageBroker"]:::amber
+        FLOWSVC["FlowService"]:::green
+        EXECSVC["ExecutionService"]:::green
+        DEBUGSVC["DebugService"]:::green
+        HISTSVC["HistoryService"]:::green
+        NODEREG["NodeExecutorRegistry"]:::purple
+        IEXEC["INodeExecutor<br/>interface"]:::pink
+        REPO["FlowRepository"]:::neutral
+        HISTREPO["HistoryRepository"]:::neutral
+    end
+
+    subgraph webview["WebView"]
+        APP["FlowEditorApp"]:::blue
+        MSGCLIENT["MessageClient"]:::amber
+    end
+
+    MAIN --> CMD
+    MAIN --> TREE
+    MAIN --> EDITOR
+    CMD --> EDITOR
+    CMD --> FLOWSVC
+    CMD --> EXECSVC
+    TREE --> FLOWSVC
+    EDITOR --> BROKER
+    BROKER <-->|"postMessage"| MSGCLIENT
+    BROKER --> FLOWSVC
+    BROKER --> EXECSVC
+    BROKER --> DEBUGSVC
+    FLOWSVC --> REPO
+    EXECSVC --> NODEREG
+    EXECSVC --> HISTSVC
+    DEBUGSVC --> EXECSVC
+    HISTSVC --> HISTREPO
+    NODEREG --> IEXEC
+    MSGCLIENT --> APP

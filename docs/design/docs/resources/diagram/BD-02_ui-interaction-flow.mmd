@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant USER as ユーザー
+    participant TREE as FlowTreeProvider
+    participant CMD as CommandRegistry
+    participant FESVC as FlowEditorManager
+    participant MB as MessageBroker
+    participant WV as WebView<br/>(FlowEditorApp)
+    participant FSVC as FlowService
+
+    Note over USER, FSVC: サイドバーでフローを開く
+    USER->>TREE: フロー項目をダブルクリック
+    TREE->>CMD: flowrunner.openEditor
+    CMD->>FESVC: openEditor(flowId)
+    FESVC->>FESVC: WebviewPanel 作成/表示
+    FESVC->>WV: HTML/JS ロード
+
+    Note over USER, FSVC: WebView 初期化
+    WV->>MB: flow:load
+    MB->>FSVC: loadFlow(flowId)
+    FSVC-->>MB: FlowDefinition
+    MB-->>WV: flow:loaded
+    WV->>MB: node:getTypes
+    MB-->>WV: node:typesLoaded
+
+    Note over USER, FSVC: ノード追加（D&D）
+    USER->>WV: NodePalette → Canvas にD&D
+    WV->>WV: React Flow ステート更新
+
+    Note over USER, FSVC: フロー保存
+    USER->>WV: Ctrl+S / 保存ボタン
+    WV->>MB: flow:save
+    MB->>FSVC: saveFlow(data)
+    FSVC-->>MB: 保存結果
+    MB-->>WV: flow:saved
+
+    Note over USER, FSVC: サイドバーからフロー作成
+    USER->>TREE: 新規作成ボタン
+    TREE->>CMD: flowrunner.createFlow
+    CMD->>FSVC: createFlow(name)
+    FSVC-->>CMD: 新規 FlowDefinition
+    CMD->>TREE: refresh()
+    CMD->>FESVC: openEditor(newFlowId)

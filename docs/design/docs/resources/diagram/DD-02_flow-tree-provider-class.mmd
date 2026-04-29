@@ -1,0 +1,32 @@
+classDiagram
+    class IFlowTreeProvider {
+        <<interface>>
+        +getChildren(parentId?: string) FlowTreeItem[]
+        +getTreeItem(item: FlowTreeItem) TreeItem
+        +refresh() void
+    }
+
+    class FlowTreeProvider {
+        -flowService: IFlowService
+        -changeEmitter: EventEmitter
+        +onDidChangeTreeData: Event
+        +getChildren(parentId?: string) FlowTreeItem[]
+        +getTreeItem(item: FlowTreeItem) TreeItem
+        +refresh() void
+    }
+
+    IFlowTreeProvider <|.. FlowTreeProvider
+
+    FlowTreeProvider --> IFlowService : flowService
+
+    class FlowTreeItem {
+        +id: string
+        +label: string
+        +type: string
+        +description: string
+        +parentId?: string
+    }
+
+    class IFlowService {
+        <<interface>>
+    }

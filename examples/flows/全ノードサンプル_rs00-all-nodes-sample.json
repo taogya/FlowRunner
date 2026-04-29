@@ -1,0 +1,501 @@
+{
+  "id": "rs00-all-nodes-sample",
+  "name": "全ノードサンプル",
+  "description": "全13種ビルトインノードを1フローに配置。Commandのstdout/stderr、Condition/Loop/TryCatch/Parallelの分岐ポート、およびAI/File/HTTP/SubFlowの依存ノードをまとめて確認するサンプル",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "全13種ビルトインノードの配置サンプルです。\n- Command は stdout / stderr の両出力を表示\n- Condition / Loop / TryCatch / Parallel は複数ポート表示を確認\n- AI / File / HTTP / SubFlow は環境依存のため disabled で同梱"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "手動トリガー",
+      "enabled": true,
+      "position": {
+        "x": 40,
+        "y": 220
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "cmd",
+      "type": "command",
+      "label": "標準出力と標準エラー",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 90
+      },
+      "settings": {
+        "command": "echo STDOUT_DATA; echo STDERR_DATA >&2"
+      }
+    },
+    {
+      "id": "log-stdout",
+      "type": "log",
+      "label": "stdoutログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 60
+      },
+      "settings": {
+        "message": "stdout: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-stderr",
+      "type": "log",
+      "label": "stderrログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 140
+      },
+      "settings": {
+        "message": "stderr: {{input}}",
+        "level": "warn"
+      }
+    },
+    {
+      "id": "file",
+      "type": "file",
+      "label": "ファイル(read)",
+      "enabled": false,
+      "position": {
+        "x": 900,
+        "y": 60
+      },
+      "settings": {
+        "operation": "read",
+        "path": "./README.md",
+        "encoding": "utf-8"
+      }
+    },
+    {
+      "id": "cond",
+      "type": "condition",
+      "label": "条件分岐",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 270
+      },
+      "settings": {
+        "expression": "input !== null"
+      }
+    },
+    {
+      "id": "transform",
+      "type": "transform",
+      "label": "データ変換",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 240
+      },
+      "settings": {
+        "transformType": "template",
+        "expression": "変換済み: {{input}}"
+      }
+    },
+    {
+      "id": "log-false",
+      "type": "log",
+      "label": "false分岐ログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 340
+      },
+      "settings": {
+        "message": "false: {{input}}",
+        "level": "warn"
+      }
+    },
+    {
+      "id": "http",
+      "type": "http",
+      "label": "HTTP GET",
+      "enabled": false,
+      "position": {
+        "x": 900,
+        "y": 240
+      },
+      "settings": {
+        "url": "https://example.com",
+        "method": "GET",
+        "headers": {},
+        "timeout": 30
+      }
+    },
+    {
+      "id": "loop",
+      "type": "loop",
+      "label": "ループ(count2)",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 460
+      },
+      "settings": {
+        "loopType": "count",
+        "count": 2
+      }
+    },
+    {
+      "id": "log-body",
+      "type": "log",
+      "label": "body出力",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 430
+      },
+      "settings": {
+        "message": "loop body: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-done",
+      "type": "log",
+      "label": "done出力",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 520
+      },
+      "settings": {
+        "message": "loop done: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "subflow",
+      "type": "subFlow",
+      "label": "SubFlow",
+      "enabled": false,
+      "position": {
+        "x": 900,
+        "y": 520
+      },
+      "settings": {
+        "flowId": ""
+      }
+    },
+    {
+      "id": "parallel",
+      "type": "parallel",
+      "label": "並列実行",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 690
+      },
+      "settings": {}
+    },
+    {
+      "id": "log-p1",
+      "type": "log",
+      "label": "ブランチ1ログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 630
+      },
+      "settings": {
+        "message": "branch1: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-p2",
+      "type": "log",
+      "label": "ブランチ2ログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 700
+      },
+      "settings": {
+        "message": "branch2: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-p3",
+      "type": "log",
+      "label": "ブランチ3ログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 770
+      },
+      "settings": {
+        "message": "branch3: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-pdone",
+      "type": "log",
+      "label": "並列完了ログ",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 840
+      },
+      "settings": {
+        "message": "parallel done: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "trycatch",
+      "type": "tryCatch",
+      "label": "Try/Catch",
+      "enabled": true,
+      "position": {
+        "x": 920,
+        "y": 690
+      },
+      "settings": {}
+    },
+    {
+      "id": "log-try",
+      "type": "log",
+      "label": "tryログ",
+      "enabled": true,
+      "position": {
+        "x": 1180,
+        "y": 630
+      },
+      "settings": {
+        "message": "try: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-catch",
+      "type": "log",
+      "label": "catchログ",
+      "enabled": true,
+      "position": {
+        "x": 1180,
+        "y": 700
+      },
+      "settings": {
+        "message": "catch: {{input}}",
+        "level": "warn"
+      }
+    },
+    {
+      "id": "log-trydone",
+      "type": "log",
+      "label": "Try/Catch完了",
+      "enabled": true,
+      "position": {
+        "x": 1180,
+        "y": 770
+      },
+      "settings": {
+        "message": "tryCatch done: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "ai",
+      "type": "aiPrompt",
+      "label": "AI",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 960
+      },
+      "settings": {
+        "prompt": "Pythonのソート関数",
+        "model": "oswe-vscode-prime"
+      }
+    },
+    {
+      "id": "log-ai",
+      "type": "log",
+      "label": "AI出力",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 960
+      },
+      "settings": {
+        "message": "AI: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log-stdout",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2b",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stderr",
+      "targetNodeId": "log-stderr",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2c",
+      "sourceNodeId": "log-stdout",
+      "sourcePortId": "out",
+      "targetNodeId": "file",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cond",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "cond",
+      "sourcePortId": "true",
+      "targetNodeId": "transform",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "cond",
+      "sourcePortId": "false",
+      "targetNodeId": "log-false",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e6",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "loop",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e7",
+      "sourceNodeId": "loop",
+      "sourcePortId": "body",
+      "targetNodeId": "log-body",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e8",
+      "sourceNodeId": "loop",
+      "sourcePortId": "done",
+      "targetNodeId": "log-done",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e14",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "parallel",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e15",
+      "sourceNodeId": "parallel",
+      "sourcePortId": "branch1",
+      "targetNodeId": "log-p1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e16",
+      "sourceNodeId": "parallel",
+      "sourcePortId": "branch2",
+      "targetNodeId": "log-p2",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e17",
+      "sourceNodeId": "parallel",
+      "sourcePortId": "branch3",
+      "targetNodeId": "log-p3",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e18",
+      "sourceNodeId": "parallel",
+      "sourcePortId": "done",
+      "targetNodeId": "log-pdone",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e19",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "trycatch",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e20",
+      "sourceNodeId": "trycatch",
+      "sourcePortId": "try",
+      "targetNodeId": "log-try",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e21",
+      "sourceNodeId": "trycatch",
+      "sourcePortId": "catch",
+      "targetNodeId": "log-catch",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e22",
+      "sourceNodeId": "trycatch",
+      "sourcePortId": "done",
+      "targetNodeId": "log-trydone",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e23",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "ai",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e24",
+      "sourceNodeId": "ai",
+      "sourcePortId": "out",
+      "targetNodeId": "log-ai",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-09T17:00:27.434Z"
+}

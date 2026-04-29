@@ -1,0 +1,116 @@
+classDiagram
+    direction TB
+
+    class INodeExecutor {
+        <<interface>>
+        +execute(context: IExecutionContext) IExecutionResult
+        +validate(settings: NodeSettings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class IExecutionContext {
+        <<interface>>
+        +nodeId: string
+        +settings: NodeSettings
+        +inputs: PortDataMap
+        +flowId: string
+        +signal: AbortSignal
+    }
+
+    class IExecutionResult {
+        <<interface>>
+        +status: ExecutionStatus
+        +outputs: PortDataMap
+        +error?: ErrorInfo
+        +duration: number
+    }
+
+    class NodeExecutorRegistry {
+        -executors: Map
+        +register(nodeType: string, executor: INodeExecutor) void
+        +get(nodeType: string) INodeExecutor
+        +getAll() INodeExecutor[]
+        +has(nodeType: string) boolean
+    }
+
+    class TriggerExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class CommandExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class AIPromptExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class ConditionExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class LoopExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class LogExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class FileExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class HttpExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class TransformExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class CommentExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    class SubFlowExecutor {
+        +execute(context) IExecutionResult
+        +validate(settings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    NodeExecutorRegistry --> "0..*" INodeExecutor : manages
+    INodeExecutor ..> IExecutionContext : receives
+    INodeExecutor ..> IExecutionResult : returns
+
+    TriggerExecutor ..|> INodeExecutor
+    CommandExecutor ..|> INodeExecutor
+    AIPromptExecutor ..|> INodeExecutor
+    ConditionExecutor ..|> INodeExecutor
+    LoopExecutor ..|> INodeExecutor
+    LogExecutor ..|> INodeExecutor
+    FileExecutor ..|> INodeExecutor
+    HttpExecutor ..|> INodeExecutor
+    TransformExecutor ..|> INodeExecutor
+    CommentExecutor ..|> INodeExecutor
+    SubFlowExecutor ..|> INodeExecutor

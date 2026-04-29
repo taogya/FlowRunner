@@ -1,0 +1,23 @@
+graph TD
+    subgraph external["外部"]
+        USER["👤 ユーザー"]:::blue
+        FS["📁 ファイルシステム<br/>.flowrunner/"]:::neutral
+        SHELL["🖥️ シェル<br/>コマンド実行"]:::neutral
+        LLM["🤖 VSCode LM API<br/>Copilot LLM"]:::purple
+        HTTP_EXT["🌐 外部 HTTP<br/>サービス"]:::neutral
+    end
+
+    subgraph vscode["VSCode"]
+        FR["FlowRunner<br/>拡張機能"]:::green
+        SIDEBAR["サイドバー<br/>フロー一覧"]:::green
+        WEBVIEW["WebView<br/>ノードUI エディタ"]:::green
+    end
+
+    USER -->|"操作"| SIDEBAR
+    USER -->|"編集"| WEBVIEW
+    SIDEBAR -->|"管理"| FR
+    WEBVIEW -->|"設計"| FR
+    FR -->|"保存/読込"| FS
+    FR -->|"コマンド実行"| SHELL
+    FR -->|"AI呼び出し"| LLM
+    FR -->|"HTTPリクエスト"| HTTP_EXT

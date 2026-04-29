@@ -1,0 +1,138 @@
+{
+  "id": "feat-00017-step",
+  "name": "FEAT-00017 ステップデバッグ",
+  "description": "ステップ実行デバッグの確認用フロー。現在位置、無効ノードのスキップ、分岐の進行を確認できる。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide",
+      "type": "comment",
+      "label": "確認ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. Debug を開始すると停止中ノードが強調表示されます。\n2. Step で 1 ノードずつ進み、Disabled Step は停止せずスキップされ、その後 Prepare に進みます。\n3. 通常実行でも Prepare → Condition → True Branch まで進み、最新実行サマリーに記録されます。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 110
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "disabled",
+      "type": "command",
+      "label": "Disabled Step",
+      "enabled": false,
+      "position": {
+        "x": 260,
+        "y": 165
+      },
+      "settings": {
+        "command": "echo should-not-run"
+      }
+    },
+    {
+      "id": "prepare",
+      "type": "command",
+      "label": "Prepare",
+      "enabled": true,
+      "position": {
+        "x": 260,
+        "y": 55
+      },
+      "settings": {
+        "command": "echo debug-step"
+      }
+    },
+    {
+      "id": "condition",
+      "type": "condition",
+      "label": "Condition",
+      "enabled": true,
+      "position": {
+        "x": 520,
+        "y": 55
+      },
+      "settings": {
+        "expression": "true"
+      }
+    },
+    {
+      "id": "trueLog",
+      "type": "log",
+      "label": "True Branch",
+      "enabled": true,
+      "position": {
+        "x": 780,
+        "y": 110
+      },
+      "settings": {
+        "level": "info"
+      }
+    },
+    {
+      "id": "falseLog",
+      "type": "log",
+      "label": "False Branch",
+      "enabled": true,
+      "position": {
+        "x": 780,
+        "y": 0
+      },
+      "settings": {
+        "level": "warn"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "disabled",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "prepare",
+      "sourcePortId": "stdout",
+      "targetNodeId": "condition",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "condition",
+      "sourcePortId": "true",
+      "targetNodeId": "trueLog",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "condition",
+      "sourcePortId": "false",
+      "targetNodeId": "falseLog",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-trigger-prepare-1775490264245",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "prepare",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-05T00:00:00.000Z",
+  "updatedAt": "2026-04-07T15:40:10.860Z"
+}

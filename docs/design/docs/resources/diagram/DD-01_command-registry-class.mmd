@@ -1,0 +1,38 @@
+classDiagram
+    class CommandRegistry {
+        -flowService: IFlowService
+        -flowEditorManager: IFlowEditorManager
+        -executionService: IExecutionService
+        -flowTreeProvider: IFlowTreeProvider
+        -disposables: Disposable[]
+        +registerAll() void
+        +dispose() void
+        -handleCreateFlow() Promise~void~
+        -handleOpenEditor(flowId: string) Promise~void~
+        -handleDeleteFlow(flowId: string) Promise~void~
+        -handleExecuteFlow(flowId: string) Promise~void~
+        -handleRenameFlow(flowId: string) Promise~void~
+        -handleDebugFlow(flowId: string) Promise~void~
+        -wrapHandler(handler: Function) Function
+    }
+
+    class IFlowService {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    class IFlowEditorManager {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    class IExecutionService {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    class IFlowTreeProvider {
+        &lt;&lt;interface&gt;&gt;
+    }
+
+    CommandRegistry --> IFlowService : uses
+    CommandRegistry --> IFlowEditorManager : uses
+    CommandRegistry --> IExecutionService : uses
+    CommandRegistry --> IFlowTreeProvider : uses

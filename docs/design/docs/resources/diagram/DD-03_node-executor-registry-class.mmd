@@ -1,0 +1,26 @@
+classDiagram
+    class INodeExecutorRegistry {
+        <<interface>>
+        +register(nodeType: string, executor: INodeExecutor) void
+        +get(nodeType: string) INodeExecutor
+        +getAll() INodeExecutor[]
+        +has(nodeType: string) boolean
+    }
+
+    class NodeExecutorRegistry {
+        -executors: Map~string, INodeExecutor~
+        +register(nodeType: string, executor: INodeExecutor) void
+        +get(nodeType: string) INodeExecutor
+        +getAll() INodeExecutor[]
+        +has(nodeType: string) boolean
+    }
+
+    class INodeExecutor {
+        <<interface>>
+        +execute(context: IExecutionContext) Promise~IExecutionResult~
+        +validate(settings: NodeSettings) ValidationResult
+        +getMetadata() INodeTypeMetadata
+    }
+
+    INodeExecutorRegistry <|.. NodeExecutorRegistry
+    NodeExecutorRegistry o-- "*" INodeExecutor : executors

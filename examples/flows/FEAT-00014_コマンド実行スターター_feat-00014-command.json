@@ -1,0 +1,91 @@
+{
+  "id": "feat-00014-command",
+  "name": "FEAT-00014 コマンド実行スターター",
+  "description": "Trigger → Command → Log の最小構成で、最初の1本を作るためのスターターフロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide-start",
+      "type": "comment",
+      "label": "はじめに",
+      "enabled": true,
+      "position": {
+        "x": 80,
+        "y": 20
+      },
+      "settings": {
+        "comment": "1. Command ノードの command を自分のコマンドへ変更します。"
+      }
+    },
+    {
+      "id": "guide-check",
+      "type": "comment",
+      "label": "確認ポイント",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 20
+      },
+      "settings": {
+        "comment": "2. 実行後は Log ノードを選択して stdout を確認します。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 100,
+        "y": 140
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "command",
+      "type": "command",
+      "label": "Run Command",
+      "enabled": true,
+      "position": {
+        "x": 360,
+        "y": 140
+      },
+      "settings": {
+        "command": "echo Hello from FlowRunner"
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "Check Result",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 140
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "command",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "command",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-05T13:14:31.514Z"
+}

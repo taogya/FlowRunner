@@ -1,0 +1,137 @@
+{
+  "id": "feat-00016-summary",
+  "name": "FEAT-00016 最新実行サマリー",
+  "description": "最新実行サマリーの確認用フロー。成功ノードと失敗ノードの両方を含む。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide",
+      "type": "comment",
+      "label": "確認ポイント",
+      "enabled": true,
+      "position": {
+        "x": 20,
+        "y": 10
+      },
+      "settings": {
+        "comment": "1. 実行すると右ペインの最新実行サマリーに各ノードが並びます。\n2. Risky Read は失敗し、行が強調表示されます。\n3. 一覧行をクリックすると対応ノードへ移動して選択されます。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 60,
+        "y": 180
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "warmup",
+      "type": "command",
+      "label": "Warmup Command",
+      "enabled": true,
+      "position": {
+        "x": 300,
+        "y": 180
+      },
+      "settings": {
+        "command": "echo summary-start"
+      }
+    },
+    {
+      "id": "tryCatch",
+      "type": "tryCatch",
+      "label": "Try / Catch",
+      "enabled": true,
+      "position": {
+        "x": 560,
+        "y": 180
+      },
+      "settings": {}
+    },
+    {
+      "id": "file",
+      "type": "file",
+      "label": "Risky Read",
+      "enabled": true,
+      "position": {
+        "x": 840,
+        "y": 120
+      },
+      "settings": {
+        "operation": "read",
+        "path": "./missing-summary.txt"
+      }
+    },
+    {
+      "id": "catchLog",
+      "type": "log",
+      "label": "Handle Error",
+      "enabled": true,
+      "position": {
+        "x": 840,
+        "y": 240
+      },
+      "settings": {
+        "level": "warn"
+      }
+    },
+    {
+      "id": "doneLog",
+      "type": "log",
+      "label": "Done",
+      "enabled": true,
+      "position": {
+        "x": 1120,
+        "y": 180
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "warmup",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "warmup",
+      "sourcePortId": "stdout",
+      "targetNodeId": "tryCatch",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "tryCatch",
+      "sourcePortId": "try",
+      "targetNodeId": "file",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "tryCatch",
+      "sourcePortId": "catch",
+      "targetNodeId": "catchLog",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e5",
+      "sourceNodeId": "tryCatch",
+      "sourcePortId": "done",
+      "targetNodeId": "doneLog",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-05T00:00:00.000Z",
+  "updatedAt": "2026-04-07T15:40:33.026Z"
+}

@@ -1,0 +1,62 @@
+graph LR
+    subgraph Phase1["Phase 1: Infrastructure"]
+        OC["OutputChannel"]
+        FR["FlowRepository"]
+        HR["HistoryRepository"]
+    end
+
+    subgraph Phase2["Phase 2: Core Services"]
+        NER["NodeExecutorRegistry"]
+        FS["FlowService"]
+        HS["HistoryService"]
+        ES["ExecutionService"]
+        DS["DebugService"]
+    end
+
+    subgraph Phase3["Phase 3: UI &amp; Communication"]
+        FTP["FlowTreeProvider"]
+        MB["MessageBroker"]
+        FEM["FlowEditorManager"]
+    end
+
+    subgraph Phase4["Phase 4: Commands"]
+        CR["CommandRegistry"]
+    end
+
+    subgraph Phase5["Phase 5: Notification"]
+        NH["notificationHandler"]
+    end
+
+    subgraph Phase6["Phase 6: FileSystemWatcher"]
+        FSW["flowFileWatcher"]
+    end
+
+    FS --> FR
+    HS --> HR
+    ES --> FS
+    ES --> NER
+    ES --> HS
+    ES --> OC
+    DS --> FS
+    DS --> NER
+    DS --> HS
+    FTP --> FS
+    MB --> FS
+    MB --> ES
+    MB --> DS
+    MB --> NER
+    FEM --> MB
+    CR --> FS
+    CR --> FEM
+    CR --> ES
+    CR --> FTP
+    CR --> OC
+    NH --> ES
+    FSW --> FTP
+
+    style Phase1 fill:#e8f5e9
+    style Phase2 fill:#e3f2fd
+    style Phase3 fill:#fff3e0
+    style Phase4 fill:#fce4ec
+    style Phase5 fill:#f3e5f5
+    style Phase6 fill:#e0f2f1

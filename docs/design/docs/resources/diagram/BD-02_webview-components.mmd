@@ -1,0 +1,48 @@
+graph TB
+    subgraph app["FlowEditorApp"]
+        direction TB
+        TOOLBAR["Toolbar<br/>実行/デバッグ/保存"]:::amber
+
+        subgraph workspace["ワークスペース領域"]
+            direction LR
+            PALETTE["NodePalette<br/>ノード種別一覧<br/>（左サイド）"]:::purple
+            CANVAS["FlowCanvas<br/>React Flow<br/>（中央）"]:::blue
+            PROPANEL["PropertyPanel<br/>（右サイド）"]:::purple
+        end
+
+        MINIMAP["MiniMap<br/>（右下）"]:::neutral
+    end
+
+    subgraph palette_detail["NodePalette 内部"]
+        direction TB
+        PALITEM["NodePaletteItem<br/>ドラッグ可能な<br/>ノード種別カード"]:::purple
+    end
+
+    subgraph canvas_detail["FlowCanvas 内部"]
+        direction TB
+        CUSTOMNODE["CustomNodeComponent<br/>ノード種別ごとの<br/>カスタム描画"]:::blue
+        PORTHANDLE["PortHandle<br/>入力/出力ポート"]:::green
+        EDGE["Edge<br/>ノード間接続"]:::green
+    end
+
+    subgraph propanel_detail["PropertyPanel 内部"]
+        direction TB
+        SETTAB["SettingsTab<br/>設定フォーム"]:::amber
+        OUTTAB["OutputTab<br/>実行出力表示"]:::amber
+    end
+
+    subgraph comm["通信"]
+        MSGCLIENT["MessageClient<br/>postMessage 送受信"]:::green
+    end
+
+    PALETTE --> PALITEM
+    CANVAS --> CUSTOMNODE
+    CANVAS --> PORTHANDLE
+    CANVAS --> EDGE
+    PROPANEL --> SETTAB
+    PROPANEL --> OUTTAB
+    CANVAS -->|"ノード選択"| PROPANEL
+    TOOLBAR --> MSGCLIENT
+    CANVAS --> MSGCLIENT
+    PROPANEL --> MSGCLIENT
+    PALETTE -->|"D&D"| CANVAS

@@ -1,0 +1,59 @@
+{
+  "id": "feat-00001-schedule-trigger",
+  "name": "FEAT-00001 スケジュールトリガー",
+  "description": "10秒間隔でフローを自動実行し、実行時刻をログに出力するサンプル。flowrunner.activateTrigger コマンドでトリガーを有効化してください。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "使い方",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. コマンドパレットで FlowRunner: トリガーを有効化 を実行\n2. 10秒ごとにフローが自動実行される\n3. 実行時刻がログに出力される\n4. 停止: FlowRunner: トリガーを無効化"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "スケジュールトリガー",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 110
+      },
+      "settings": {
+        "triggerType": "schedule",
+        "intervalSeconds": 5
+      }
+    },
+    {
+      "id": "log1",
+      "type": "log",
+      "label": "実行時刻ログ",
+      "enabled": true,
+      "position": {
+        "x": 260,
+        "y": 110
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-trigger-log",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "log1",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-04-09T14:58:58.145Z"
+}

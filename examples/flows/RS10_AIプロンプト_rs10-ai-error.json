@@ -1,0 +1,124 @@
+{
+  "id": "rs10-ai-error",
+  "name": "RS10 AIプロンプト",
+  "description": "RSST: AIプロンプトノードの総合テスト。モデル選択済み実行＋モデル未選択エラーの両方を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "【正常系（モデル選択済み）】\n1. PropertyPanelのドロップダウンからモデルを選択すること\n2. prompt/systemPrompt/temperature/maxTokens設定の動作確認\n3. out出力ポートにAI応答が流れること\n4. _tokenUsage出力ポートにトークン使用量が流れること\n\n【異常系（モデル未選択）】\n5. ai-no-modelノード(disabled)を有効にして実行\n6. model未設定→エラー状態になること\n7. エラーメッセージ「AIノードのモデルを選択してください」が表示されること"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 150
+      },
+      "settings": {}
+    },
+    {
+      "id": "ai",
+      "type": "aiPrompt",
+      "label": "AI(モデル選択済み)",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 150
+      },
+      "settings": {
+        "model": "oswe-vscode-prime",
+        "prompt": "「Hello」と返答してください。",
+        "systemPrompt": "あなたは簡潔に回答するアシスタントです。",
+        "temperature": 0.3,
+        "maxTokens": 100
+      }
+    },
+    {
+      "id": "log-result",
+      "type": "log",
+      "label": "AI応答ログ",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 100
+      },
+      "settings": {
+        "message": "AI応答: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "log-token",
+      "type": "log",
+      "label": "トークン使用量",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 250
+      },
+      "settings": {
+        "message": "トークン: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "ai-no-model",
+      "type": "aiPrompt",
+      "label": "AI(モデル未選択)※有効にしてエラーテスト",
+      "enabled": false,
+      "position": {
+        "x": 250,
+        "y": 400
+      },
+      "settings": {
+        "prompt": "テスト用プロンプト",
+        "temperature": 0.7,
+        "maxTokens": 1024
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "ai",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "ai",
+      "sourcePortId": "out",
+      "targetNodeId": "log-result",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "ai",
+      "sourcePortId": "_tokenUsage",
+      "targetNodeId": "log-token",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "ai-no-model",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-27T00:00:00.000Z",
+  "updatedAt": "2026-04-07T15:40:07.079Z"
+}

@@ -25,6 +25,7 @@ coverage/
 .flowrunner/
 
 # Documentation source only
+docs/design/
 tools/
 
 # Node modules (vsce bundles dependencies automatically)

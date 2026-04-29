@@ -1,0 +1,44 @@
+classDiagram
+    class IHistoryService {
+        <<interface>>
+        +saveRecord(record: ExecutionRecord) Promise~void~
+        +getRecords(flowId: string) Promise~ExecutionSummary[]~
+        +getRecord(recordId: string) Promise~ExecutionRecord~
+        +deleteRecord(recordId: string) Promise~void~
+        +cleanupOldRecords(flowId: string) Promise~void~
+    }
+
+    class HistoryService {
+        -repository: IHistoryRepository
+        -configProvider: function
+        +saveRecord(record: ExecutionRecord) Promise~void~
+        +getRecords(flowId: string) Promise~ExecutionSummary[]~
+        +getRecord(recordId: string) Promise~ExecutionRecord~
+        +deleteRecord(recordId: string) Promise~void~
+        +cleanupOldRecords(flowId: string) Promise~void~
+    }
+
+    class IHistoryRepository {
+        <<interface>>
+        +save(record: ExecutionRecord) Promise~void~
+        +load(recordId: string) Promise~ExecutionRecord~
+        +list(flowId: string) Promise~ExecutionSummary[]~
+        +delete(recordId: string) Promise~void~
+        +count(flowId: string) Promise~number~
+    }
+
+    class HistoryRepository {
+        -fs: IFileSystem
+        -workspaceRoot: URI
+        +save(record: ExecutionRecord) Promise~void~
+        +load(recordId: string) Promise~ExecutionRecord~
+        +list(flowId: string) Promise~ExecutionSummary[]~
+        +delete(recordId: string) Promise~void~
+        +count(flowId: string) Promise~number~
+        -getFlowDir(flowId: string) URI
+        -getRecordPath(flowId, recordId) URI
+    }
+
+    IHistoryService <|.. HistoryService
+    IHistoryRepository <|.. HistoryRepository
+    HistoryService --> IHistoryRepository : repository

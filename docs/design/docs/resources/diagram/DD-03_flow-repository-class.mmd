@@ -1,0 +1,42 @@
+classDiagram
+    class IFlowRepository {
+        <<interface>>
+        +save(flow: FlowDefinition) Promise~void~
+        +load(flowId: string) Promise~FlowDefinition~
+        +delete(flowId: string) Promise~void~
+        +list(parentId?: string) Promise~FlowSummary[]~
+        +exists(flowId: string) Promise~boolean~
+    }
+
+    class FlowRepository {
+        -baseDir: string
+        +save(flow: FlowDefinition) Promise~void~
+        +load(flowId: string) Promise~FlowDefinition~
+        +delete(flowId: string) Promise~void~
+        +list(parentId?: string) Promise~FlowSummary[]~
+        +exists(flowId: string) Promise~boolean~
+        -ensureBaseDir() Promise~void~
+        -getFlowPath(flowId: string) string
+        -validatePath(filePath: string) string
+    }
+
+    class FlowDefinition {
+        +id: string
+        +name: string
+        +description: string
+        +version: string
+        +nodes: NodeInstance[]
+        +edges: EdgeInstance[]
+        +createdAt: string
+        +updatedAt: string
+    }
+
+    class FlowSummary {
+        +id: string
+        +name: string
+        +updatedAt: string
+    }
+
+    IFlowRepository <|.. FlowRepository
+    FlowRepository ..> FlowDefinition : read/write
+    FlowRepository ..> FlowSummary : list returns

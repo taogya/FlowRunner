@@ -1,0 +1,105 @@
+{
+  "id": "feat-00014-schedule",
+  "name": "FEAT-00014 定期実行スターター",
+  "description": "schedule trigger を使った定期実行のスターターフロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide-schedule",
+      "type": "comment",
+      "label": "まず設定",
+      "enabled": true,
+      "position": {
+        "x": 80,
+        "y": 20
+      },
+      "settings": {
+        "comment": "1. Trigger の intervalSeconds を実行間隔に合わせて変更します。"
+      }
+    },
+    {
+      "id": "guide-activate",
+      "type": "comment",
+      "label": "実行方法",
+      "enabled": true,
+      "position": {
+        "x": 360,
+        "y": 20
+      },
+      "settings": {
+        "comment": "2. 保存後に FlowRunner: トリガーを有効化 で定期実行を開始します。"
+      }
+    },
+    {
+      "id": "guide-schedule-output",
+      "type": "comment",
+      "label": "確認ポイント",
+      "enabled": true,
+      "position": {
+        "x": 660,
+        "y": 20
+      },
+      "settings": {
+        "comment": "3. Log ノードで定期実行の結果を確認します。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Scheduled Trigger",
+      "enabled": true,
+      "position": {
+        "x": 100,
+        "y": 160
+      },
+      "settings": {
+        "triggerType": "schedule",
+        "intervalSeconds": 3600
+      }
+    },
+    {
+      "id": "command",
+      "type": "command",
+      "label": "Run Cleanup",
+      "enabled": true,
+      "position": {
+        "x": 380,
+        "y": 160
+      },
+      "settings": {
+        "command": "echo cleanup job"
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "Cleanup Result",
+      "enabled": true,
+      "position": {
+        "x": 660,
+        "y": 160
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "command",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "command",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-07T16:17:50.634Z"
+}

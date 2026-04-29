@@ -1,0 +1,44 @@
+sequenceDiagram
+    autonumber
+    participant VSCode
+    participant EM as ExtensionMain<br>(activate)
+    participant Infra as Infrastructure
+    participant Core as Core Services
+    participant UI as UI/Communication
+    participant Cmd as Commands
+
+    VSCode->>EM: activate(context)
+
+    note over EM: Phase 1: Infrastructure
+    EM->>Infra: createOutputChannel('FlowRunner')
+    EM->>Infra: new FlowRepository(fileSystem, workspaceUri)
+    EM->>Infra: new HistoryRepository(fileSystem, workspaceUri)
+
+    note over EM: Phase 2: Core Services
+    EM->>Core: new NodeExecutorRegistry()
+    EM->>Core: new FlowService(flowRepository)
+    EM->>Core: new HistoryService(historyRepository, config)
+    EM->>Core: new ExecutionService(flowService,<br>nodeExecutorRegistry, historyService, outputChannel)
+    EM->>Core: new DebugService(flowService,<br>nodeExecutorRegistry, historyService)
+    EM->>Core: registerBuiltinExecutors(registry, deps)
+
+    note over EM: Phase 3: UI/Communication
+    EM->>UI: new FlowTreeProvider(flowService)
+    EM->>UI: registerTreeDataProvider('flowrunner.flowList',<br>treeProvider)
+    EM->>UI: new FlowEditorManager(extensionUri,<br>brokerFactory)
+    note right of UI: brokerFactory = () =><br>new MessageBroker(...)
+
+    note over EM: Phase 4: Commands
+    EM->>Cmd: new CommandRegistry(flowService,<br>editorManager, executionService,<br>treeProvider, outputChannel)
+    EM->>Cmd: commandRegistry.registerAll()
+
+    note over EM: Phase 5: Notification Handler
+    EM->>Core: createNotificationHandler()
+    EM->>Core: executionService.onFlowEvent(<br>flowCompleted フィルタ)
+
+    note over EM: Phase 6: FileSystemWatcher
+    EM->>VSCode: createFileSystemWatcher(<br>'.flowrunner/*.json')
+    EM->>UI: onDidCreate/Change/Delete →<br>flowTreeProvider.refresh()
+
+    note over EM: Phase 7: Disposable 登録
+    EM->>VSCode: context.subscriptions.push(<br>outputChannel, commandRegistry,<br>flowEditorManager,<br>notificationDisposable, flowFileWatcher)

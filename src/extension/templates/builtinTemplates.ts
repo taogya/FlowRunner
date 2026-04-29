@@ -104,7 +104,7 @@ export const builtinTemplates: FlowTemplate[] = [
     category: "builtin",
     nodes: [
       { id: "trigger", type: "trigger", label: "Trigger", enabled: true, position: { x: 100, y: 100 }, settings: { triggerType: "manual" } },
-      { id: "http", type: "http", label: "HTTP GET", enabled: true, position: { x: 350, y: 100 }, settings: { method: "GET", url: "https://httpbin.org/get" } },
+      { id: "http", type: "http", label: "HTTP GET", enabled: true, position: { x: 350, y: 100 }, settings: { method: "GET", url: "https://example.com" } },
       { id: "parse", type: "transform", label: "JSON Parse", enabled: true, position: { x: 600, y: 100 }, settings: { transformType: "jsonParse" } },
       { id: "log", type: "log", label: "Response Log", enabled: true, position: { x: 850, y: 100 }, settings: { level: "info" } },
     ],
@@ -297,7 +297,7 @@ export const starterTemplates: FlowTemplate[] = [
         label: "HTTP GET",
         enabled: true,
         position: { x: 360, y: 140 },
-        settings: { method: "GET", url: "https://httpbin.org/get" },
+        settings: { method: "GET", url: "https://example.com" },
       },
       {
         id: "log",

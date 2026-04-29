@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant ES as ExecutionService
+    participant NER as NodeExecutor<br>Registry
+    participant NE as INodeExecutor
+    participant MB as MessageBroker
+
+    ES->>ES: トポロジカル<br>ソート
+    loop 各ノード（トポロジカル順）
+        ES->>ES: enabled チェック
+        alt 無効ノード
+            ES->>ES: スキップ
+        else 有効ノード
+            ES->>NER: get(nodeType)
+            NER-->>ES: INodeExecutor
+            ES->>NE: validate(settings)
+            NE-->>ES: ValidationResult
+            alt バリデーションエラー
+                ES->>MB: execution:nodeError
+            else バリデーション OK
+                ES->>MB: execution:nodeStarted
+                ES->>ES: IExecutionContext 構築<br>(前ノード出力 → 入力ポート)
+                ES->>NE: execute(context)
+                NE-->>ES: IExecutionResult
+                alt 実行成功
+                    ES->>ES: 出力を後続ノードの<br>入力としてマッピング
+                    ES->>MB: execution:nodeCompleted
+                else 実行エラー
+                    ES->>MB: execution:nodeError
+                    ES->>ES: エラーポリシーに基づく<br>フロー停止判定
+                end
+            end
+        end
+    end
+    ES->>MB: execution:flowCompleted

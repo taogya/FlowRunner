@@ -1,0 +1,77 @@
+classDiagram
+    direction TB
+
+    class FlowDefinition {
+        +id: string
+        +name: string
+        +description: string
+        +version: string
+        +nodes: NodeInstance[]
+        +edges: EdgeInstance[]
+        +createdAt: string
+        +updatedAt: string
+    }
+
+    class NodeInstance {
+        +id: string
+        +type: string
+        +label: string
+        +enabled: boolean
+        +position: Position
+        +settings: NodeSettings
+    }
+
+    class Position {
+        +x: number
+        +y: number
+    }
+
+    class NodeSettings {
+        +[key: string]: unknown
+    }
+
+    class EdgeInstance {
+        +id: string
+        +sourceNodeId: string
+        +sourcePortId: string
+        +targetNodeId: string
+        +targetPortId: string
+    }
+
+    class INodeTypeMetadata {
+        <<interface>>
+        +nodeType: string
+        +label: string
+        +icon: string
+        +category: string
+        +inputPorts: PortDefinition[]
+        +outputPorts: PortDefinition[]
+        +settingsSchema: SettingFieldDef[]
+    }
+
+    class PortDefinition {
+        +id: string
+        +label: string
+        +dataType: string
+    }
+
+    class SettingFieldDef {
+        +key: string
+        +label: string
+        +type: FieldType
+        +required: boolean
+        +defaultValue: unknown
+        +options?: SelectOption[]
+        +placeholder?: string
+    }
+
+    FlowDefinition *-- "0..*" NodeInstance : contains
+    FlowDefinition *-- "0..*" EdgeInstance : contains
+    NodeInstance *-- Position
+    NodeInstance *-- NodeSettings
+    INodeTypeMetadata *-- "0..*" PortDefinition : inputPorts
+    INodeTypeMetadata *-- "0..*" PortDefinition : outputPorts
+    INodeTypeMetadata *-- "0..*" SettingFieldDef : settingsSchema
+
+    EdgeInstance ..> NodeInstance : sourceNodeId
+    EdgeInstance ..> NodeInstance : targetNodeId

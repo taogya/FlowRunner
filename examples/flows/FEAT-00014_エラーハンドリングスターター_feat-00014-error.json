@@ -1,0 +1,130 @@
+{
+  "id": "feat-00014-error",
+  "name": "FEAT-00014 エラーハンドリングスターター",
+  "description": "TryCatch で失敗時の分岐を先に用意するスターターフロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide-try",
+      "type": "comment",
+      "label": "Try 側",
+      "enabled": true,
+      "position": {
+        "x": 80,
+        "y": 20
+      },
+      "settings": {
+        "comment": "1. Try 側の File ノードを、本番で実行したいノードへ差し替えます。"
+      }
+    },
+    {
+      "id": "guide-catch",
+      "type": "comment",
+      "label": "Catch 側",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 20
+      },
+      "settings": {
+        "comment": "2. Catch 側には失敗通知や代替処理をつなぎます。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 100,
+        "y": 170
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "tryCatch",
+      "type": "tryCatch",
+      "label": "Try / Catch",
+      "enabled": true,
+      "position": {
+        "x": 360,
+        "y": 170
+      },
+      "settings": {}
+    },
+    {
+      "id": "file",
+      "type": "file",
+      "label": "Risky Step",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 120
+      },
+      "settings": {
+        "operation": "read",
+        "path": "./missing.txt"
+      }
+    },
+    {
+      "id": "catchLog",
+      "type": "log",
+      "label": "Handle Error",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 250
+      },
+      "settings": {
+        "level": "warn"
+      }
+    },
+    {
+      "id": "doneLog",
+      "type": "log",
+      "label": "Done",
+      "enabled": true,
+      "position": {
+        "x": 900,
+        "y": 170
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "tryCatch",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "tryCatch",
+      "sourcePortId": "try",
+      "targetNodeId": "file",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "tryCatch",
+      "sourcePortId": "catch",
+      "targetNodeId": "catchLog",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "tryCatch",
+      "sourcePortId": "done",
+      "targetNodeId": "doneLog",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-05T13:14:22.350Z"
+}

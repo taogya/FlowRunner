@@ -1,0 +1,78 @@
+{
+  "id": "feat-00015-high",
+  "name": "FEAT-00015 実行前バリデーション 高重大",
+  "description": "事前バリデーションで high を発生させる確認用フロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide",
+      "type": "comment",
+      "label": "確認ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. Command ノードの command が未設定なので、実行前に block されます。\n2. エラーダイアログに対象ノードと理由が表示されることを確認します。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 40,
+        "y": 150
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "command",
+      "type": "command",
+      "label": "Missing Command",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 150
+      },
+      "settings": {
+        "command": ""
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "Never Runs",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 150
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "command",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "command",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-05T13:29:53.847Z"
+}

@@ -1,0 +1,80 @@
+classDiagram
+    direction TB
+
+    class IExecutionService {
+        <<interface>>
+        +executeFlow(flowId: string) void
+        +stopFlow(flowId: string) void
+        +getRunningFlows() string[]
+        +isRunning(flowId: string) boolean
+        +onFlowEvent: Event
+    }
+
+    class IDebugService {
+        <<interface>>
+        +startDebug(flowId: string) void
+        +step() void
+        +stopDebug() void
+        +isDebugging() boolean
+        +getIntermediateResults() NodeResultMap
+        +onDebugEvent: Event
+    }
+
+    class IHistoryService {
+        <<interface>>
+        +saveRecord(record: ExecutionRecord) void
+        +getRecords(flowId: string) ExecutionSummary[]
+        +getRecord(recordId: string) ExecutionRecord
+        +deleteRecord(recordId: string) void
+        +cleanupOldRecords(flowId: string) void
+    }
+
+    class IHistoryRepository {
+        <<interface>>
+        +save(record: ExecutionRecord) void
+        +load(recordId: string) ExecutionRecord
+        +list(flowId: string) ExecutionSummary[]
+        +delete(recordId: string) void
+        +count(flowId: string) number
+    }
+
+    class ExecutionRecord {
+        +id: string
+        +flowId: string
+        +flowName: string
+        +startedAt: string
+        +completedAt: string
+        +duration: number
+        +status: ExecutionStatus
+        +nodeResults: NodeResult[]
+        +error?: ErrorInfo
+    }
+
+    class NodeResult {
+        +nodeId: string
+        +nodeType: string
+        +nodeLabel: string
+        +status: ExecutionStatus
+        +inputs: PortDataMap
+        +outputs: PortDataMap
+        +duration: number
+        +error?: ErrorInfo
+    }
+
+    class ExecutionSummary {
+        +id: string
+        +flowId: string
+        +flowName: string
+        +startedAt: string
+        +duration: number
+        +status: ExecutionStatus
+    }
+
+    IExecutionService ..> IDebugService : delegates step
+    IExecutionService ..> IHistoryService : saves record
+    IDebugService ..> IExecutionService : single node exec
+    IHistoryService ..> IHistoryRepository : persists
+
+    ExecutionRecord *-- "0..*" NodeResult : contains
+    IHistoryService ..> ExecutionRecord : manages
+    IHistoryService ..> ExecutionSummary : returns

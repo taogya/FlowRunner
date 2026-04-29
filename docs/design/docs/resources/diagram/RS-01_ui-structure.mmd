@@ -1,0 +1,23 @@
+graph LR
+    subgraph sidebar["サイドバー（アクティビティバー）"]
+        direction TB
+        ICON["FlowRunner<br/>アイコン"]:::blue
+        LIST["フロー一覧<br/>ツリービュー"]:::green
+        SEARCH["検索/フィルター"]:::green
+        ACTIONS["操作ボタン<br/>新規/削除/実行"]:::green
+    end
+
+    subgraph editor["WebView エディタ"]
+        direction TB
+        TOOLBAR["ツールバー<br/>実行/デバッグ/保存"]:::amber
+        PALETTE["ノードパレット<br/>（左サイド）"]:::purple
+        CANVAS["フローキャンバス<br/>（ノードUI）"]:::blue
+        PROPANEL["プロパティパネル<br/>設定/出力タブ<br/>（右サイド）"]:::purple
+        MINIMAP["ミニマップ"]:::neutral
+    end
+
+    ICON --> LIST
+    LIST -->|"ダブルクリック"| CANVAS
+    ACTIONS -->|"新規作成"| CANVAS
+    PALETTE -->|"D&D"| CANVAS
+    CANVAS -->|"ノード選択"| PROPANEL

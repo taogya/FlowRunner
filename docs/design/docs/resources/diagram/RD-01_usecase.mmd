@@ -1,0 +1,29 @@
+graph LR
+    subgraph actors["アクター"]
+        DEV["👤 開発者（個人）"]:::blue
+        TEAM["👥 開発チーム"]:::blue
+    end
+
+    subgraph uc_core["コア機能"]
+        UC1["UC-00001<br/>フローを作成する"]:::green
+        UC2["UC-00002<br/>フローを編集する"]:::green
+        UC3["UC-00003<br/>フローを削除する"]:::green
+        UC4["UC-00004<br/>フローを実行する"]:::green
+        UC5["UC-00005<br/>フローをデバッグする"]:::green
+        UC6["UC-00006<br/>フロー一覧を閲覧する"]:::green
+    end
+
+    subgraph uc_collab["共有・履歴"]
+        UC7["UC-00007<br/>フローを共有する"]:::amber
+        UC8["UC-00008<br/>実行履歴を確認する"]:::amber
+    end
+
+    DEV --> UC1
+    DEV --> UC2
+    DEV --> UC3
+    DEV --> UC4
+    DEV --> UC5
+    DEV --> UC6
+    DEV --> UC8
+    TEAM --> UC7
+    TEAM --> UC6

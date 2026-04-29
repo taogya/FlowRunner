@@ -1,0 +1,36 @@
+digraph outside_in_tdd {
+    bgcolor="#FAFAF8"
+    fontname="Helvetica"
+    rankdir=TB
+    nodesep=1.2
+    ranksep=0.8
+    node [fontname="Helvetica" fontsize=13 style="filled,rounded" shape=box]
+    edge [fontname="Helvetica" fontsize=11]
+
+    // ── 設計側（左・下降） ──
+    BD   [label="1. BD 完了\nInterface 定義" fillcolor="#DBEAFE" color="#3B82F6" fontcolor="#1E40AF"]
+    DD   [label="5. DD 作成\n内部設計"       fillcolor="#EDE9FE" color="#8B5CF6" fontcolor="#5B21B6"]
+    IMPL [label="7. Real 実装"              fillcolor="#DBEAFE" color="#3B82F6" fontcolor="#1E40AF"]
+
+    // ── テスト側（右・上昇） ──
+    IT_R [label="2. IT 作成 → Red\n3. Mock 実装\n4. IT 確認 → Green (Mock)" fillcolor="#D1FAE5" color="#10B981" fontcolor="#065F46"]
+    UT   [label="6. UT 作成 → Red\n8. UT 確認 → Green"                      fillcolor="#FEF3C7" color="#F59E0B" fontcolor="#92400E"]
+    IT_G [label="9. Mock→Real 差替\n10. IT 確認 → Green (Real)\n＝ 実動作保証" fillcolor="#D1FAE5" color="#10B981" fontcolor="#065F46"]
+
+    // ── V字：左側の下降 ──
+    BD   -> DD   [label="設計を\n詳細化" color="#475569" fontcolor="#475569"]
+    DD   -> IMPL [label="実装"         color="#475569" fontcolor="#475569"]
+
+    // ── V字：水平の対応（BD↔IT, DD↔UT） ──
+    {rank=same; BD; IT_R}
+    {rank=same; DD; UT}
+    {rank=same; IMPL; IT_G}
+
+    BD   -> IT_R [label="BD ↔ IT"  style=dashed color="#94A3B8" fontcolor="#64748B"]
+    DD   -> UT   [label="DD ↔ UT"  style=dashed color="#94A3B8" fontcolor="#64748B"]
+    IMPL -> IT_G [label="差し替え" style=dashed color="#94A3B8" fontcolor="#64748B"]
+
+    // ── V字：右側の上昇 ──
+    IT_G -> UT   [label="検証\n範囲拡大" color="#475569" fontcolor="#475569"]
+    UT   -> IT_R [label=""               color="#475569" fontcolor="#475569"]
+}

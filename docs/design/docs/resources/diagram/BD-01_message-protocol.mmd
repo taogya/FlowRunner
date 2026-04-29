@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant WV as WebView<br/>(React)
+    participant MB as MessageBroker
+    participant FS as FlowService
+    participant ES as ExecutionService
+    participant DS as DebugService
+
+    Note over WV, DS: フロー読み込み
+    WV->>MB: flow:load
+    MB->>FS: loadFlow(id)
+    FS-->>MB: FlowDefinition
+    MB-->>WV: flow:loaded
+
+    Note over WV, DS: フロー保存
+    WV->>MB: flow:save
+    MB->>FS: saveFlow(data)
+    FS-->>MB: 保存結果
+    MB-->>WV: flow:saved
+
+    Note over WV, DS: フロー実行
+    WV->>MB: flow:execute
+    MB->>ES: executeFlow(id)
+    loop ノードごと
+        ES-->>MB: execution:nodeStarted
+        MB-->>WV: execution:nodeStarted
+        ES-->>MB: execution:nodeCompleted
+        MB-->>WV: execution:nodeCompleted
+    end
+    ES-->>MB: execution:flowCompleted
+    MB-->>WV: execution:flowCompleted
+
+    Note over WV, DS: デバッグ（ステップ実行）
+    WV->>MB: debug:start
+    MB->>DS: startDebug(id)
+    DS-->>MB: debug:paused
+    MB-->>WV: debug:paused
+    WV->>MB: debug:step
+    MB->>DS: stepNext()
+    DS->>ES: executeNode(nodeId)
+    ES-->>DS: NodeResult
+    DS-->>MB: debug:paused
+    MB-->>WV: debug:paused

@@ -1,0 +1,77 @@
+{
+  "id": "rs11-tgt",
+  "name": "RS11 サブフロー(呼出先)",
+  "description": "RSST: SubFlowノードから呼び出される対象フロー",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "SubFlowノードから呼び出される対象フロー。Trigger→Command(echo SUB_RESULT)→Logのシンプルチェーン"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "サブ開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd",
+      "type": "command",
+      "label": "サブ処理",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "settings": {
+        "command": "echo SUB_FLOW_RESULT"
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "サブ結果",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "settings": {
+        "message": "サブフロー出力: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-01T15:17:11.876Z"
+}

@@ -1,0 +1,154 @@
+{
+  "id": "feat-00002-setget",
+  "name": "FEAT-00002 共有変数の読み書き",
+  "description": "TransformExecutor の setVar/getVar を使って共有変数を読み書きするサンプルフロー",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "trigger-1",
+      "type": "trigger",
+      "label": "手動トリガー",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 55
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "const-42",
+      "type": "transform",
+      "label": "定数 42 を生成",
+      "enabled": true,
+      "position": {
+        "x": 260,
+        "y": 55
+      },
+      "settings": {
+        "transformType": "jsExpression",
+        "expression": "42",
+        "varName": ""
+      }
+    },
+    {
+      "id": "get-var-1",
+      "type": "transform",
+      "label": "変数 counter を取得",
+      "enabled": true,
+      "position": {
+        "x": 780,
+        "y": 110
+      },
+      "settings": {
+        "transformType": "getVar",
+        "varName": "counter",
+        "defaultValue": 0
+      }
+    },
+    {
+      "id": "log-2",
+      "type": "log",
+      "label": "getVar 結果確認",
+      "enabled": true,
+      "position": {
+        "x": 1040,
+        "y": 110
+      },
+      "settings": {
+        "level": "info",
+        "message": "counter = {{input}} + 2"
+      }
+    },
+    {
+      "id": "014e62a7-ae48-4725-b145-f4703dd95885",
+      "type": "transform",
+      "label": "変数 counter を取得",
+      "enabled": true,
+      "position": {
+        "x": 780,
+        "y": 0
+      },
+      "settings": {
+        "transformType": "getVar",
+        "varName": "counter",
+        "defaultValue": 0
+      }
+    },
+    {
+      "id": "012c656b-d317-410a-a235-0838b7f5902d",
+      "type": "log",
+      "label": "getVar 結果確認",
+      "enabled": true,
+      "position": {
+        "x": 1040,
+        "y": 0
+      },
+      "settings": {
+        "level": "info",
+        "message": "counter = {{input}} + 1"
+      }
+    },
+    {
+      "id": "1b0c46f7-66f7-41fa-a88c-ffab830c839e",
+      "type": "transform",
+      "label": "データ変換",
+      "enabled": true,
+      "position": {
+        "x": 520,
+        "y": 55
+      },
+      "settings": {
+        "transformType": "setVar",
+        "varName": "counter"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "sourceNodeId": "trigger-1",
+      "sourcePortId": "out",
+      "targetNodeId": "const-42",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "get-var-1",
+      "sourcePortId": "out",
+      "targetNodeId": "log-2",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-014e62a7-ae48-4725-b145-f4703dd95885-012c656b-d317-410a-a235-0838b7f5902d-1775145145294",
+      "sourceNodeId": "014e62a7-ae48-4725-b145-f4703dd95885",
+      "sourcePortId": "out",
+      "targetNodeId": "012c656b-d317-410a-a235-0838b7f5902d",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-const-42-1b0c46f7-66f7-41fa-a88c-ffab830c839e-1775145247164",
+      "sourceNodeId": "const-42",
+      "sourcePortId": "out",
+      "targetNodeId": "1b0c46f7-66f7-41fa-a88c-ffab830c839e",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-1b0c46f7-66f7-41fa-a88c-ffab830c839e-get-var-1-1775145321414",
+      "sourceNodeId": "1b0c46f7-66f7-41fa-a88c-ffab830c839e",
+      "sourcePortId": "out",
+      "targetNodeId": "get-var-1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e-1b0c46f7-66f7-41fa-a88c-ffab830c839e-014e62a7-ae48-4725-b145-f4703dd95885-1775145323381",
+      "sourceNodeId": "1b0c46f7-66f7-41fa-a88c-ffab830c839e",
+      "sourcePortId": "out",
+      "targetNodeId": "014e62a7-ae48-4725-b145-f4703dd95885",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-04-04T02:37:40.966Z"
+}

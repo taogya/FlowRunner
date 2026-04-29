@@ -1,0 +1,60 @@
+{
+  "id": "feat-00001-file-trigger",
+  "name": "FEAT-00001 ファイル変更トリガー",
+  "description": "ファイル変更を監視し、変更されたファイルパスをログに出力するサンプル。flowrunner.activateTrigger コマンドでトリガーを有効化してください。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "使い方",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. コマンドパレットで FlowRunner: トリガーを有効化 を実行\n2. ワークスペース内の .txt ファイルを作成・変更・削除\n3. トリガーが発火し、変更ファイルパスがログに出力される\n4. 停止: FlowRunner: トリガーを無効化"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "ファイル変更トリガー",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {
+        "triggerType": "fileChange",
+        "filePattern": "**/*.txt",
+        "debounceMs": 500
+      }
+    },
+    {
+      "id": "log1",
+      "type": "log",
+      "label": "変更ログ",
+      "enabled": true,
+      "position": {
+        "x": 300,
+        "y": 200
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-trigger-log",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "log1",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-04-04T02:34:17.593Z"
+}

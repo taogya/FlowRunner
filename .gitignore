@@ -11,5 +11,4 @@ demo/
 .vscode-test/
 tmp/
 *.vsix
-.github/
 .flowrunner/

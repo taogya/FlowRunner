@@ -1,0 +1,20 @@
+graph TD
+    START["▶ 実行開始"]:::blue
+    PICK["次ノードを取得"]:::green
+    ENABLED{"有効？"}:::purple
+    EXEC["ノード実行"]:::green
+    OUTPUT["出力をポート経由で<br/>後続ノードに伝播"]:::amber
+    BRANCH{"分岐/ループ<br/>判定"}:::purple
+    DONE["✔ 完了通知"]:::green
+    ERROR["✖ エラー処理"]:::pink
+
+    START --> PICK
+    PICK --> ENABLED
+    ENABLED -->|"有効"| EXEC
+    ENABLED -->|"無効（スキップ）"| BRANCH
+    EXEC -->|"成功"| OUTPUT
+    EXEC -->|"失敗"| ERROR
+    OUTPUT --> BRANCH
+    BRANCH -->|"次ノードあり"| PICK
+    BRANCH -->|"全ノード完了"| DONE
+    ERROR -->|"フロー停止"| DONE

@@ -1,0 +1,13 @@
+graph LR
+    subgraph nodes["ノード構造"]
+        direction TB
+        IP["入力ポート"]:::blue
+        NODE["ノード本体<br/>（設定・処理）"]:::green
+        OP["出力ポート"]:::amber
+        IP --> NODE --> OP
+    end
+
+    A_OP["ノードA<br/>出力ポート"]:::amber
+    B_IP["ノードB<br/>入力ポート"]:::blue
+
+    A_OP -->|"エッジ（データフロー）"| B_IP

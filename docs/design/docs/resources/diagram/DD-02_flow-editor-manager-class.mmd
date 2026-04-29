@@ -1,0 +1,33 @@
+classDiagram
+    class IFlowEditorManager {
+        <<interface>>
+        +openEditor(flowId: string) void
+        +closeEditor(flowId: string) void
+        +getActiveFlowId() string?
+        +dispose() void
+    }
+
+    class FlowEditorManager {
+        -extensionUri: URI
+        -messageBrokerFactory: function
+        -panels: Map~string, WebviewPanel~
+        -brokers: Map~string, IMessageBroker~
+        +openEditor(flowId: string) void
+        +closeEditor(flowId: string) void
+        +getActiveFlowId() string?
+        +dispose() void
+        -getWebviewContent(webview) string
+    }
+
+    IFlowEditorManager <|.. FlowEditorManager
+
+    FlowEditorManager --> IMessageBroker : brokers
+    FlowEditorManager --> WebviewPanel : panels
+
+    class IMessageBroker {
+        <<interface>>
+    }
+
+    class WebviewPanel {
+        <<vscode API>>
+    }

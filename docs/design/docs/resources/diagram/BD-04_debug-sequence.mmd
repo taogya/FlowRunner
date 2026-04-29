@@ -1,0 +1,40 @@
+sequenceDiagram
+    participant User as ユーザー
+    participant TB as Toolbar
+    participant MC as MessageClient
+    participant MB as MessageBroker
+    participant DS as DebugService
+    participant ES as ExecutionService
+    participant NER as NodeExecutor<br>Registry
+
+    User->>TB: デバッグボタン
+    TB->>MC: debug:start
+    MC->>MB: debug:start
+    MB->>DS: startDebug(flowId)
+    DS->>ES: フロー定義取得<br>トポロジカルソート
+    DS->>MB: debug:paused<br>(次ノード=最初のノード)
+    MB->>MC: debug:paused
+    MC->>TB: ステップボタン有効化
+
+    loop ステップ実行
+        User->>TB: ステップボタン
+        TB->>MC: debug:step
+        MC->>MB: debug:step
+        MB->>DS: step()
+        DS->>ES: 1ノード実行
+        ES->>NER: get(nodeType)
+        NER-->>ES: INodeExecutor
+        ES->>ES: execute(context)
+        ES-->>DS: IExecutionResult
+        DS->>DS: 中間結果を保存
+        DS->>MB: execution:nodeCompleted
+        MB->>MC: execution:nodeCompleted
+        alt 次ノードあり
+            DS->>MB: debug:paused<br>(次ノード, 中間結果)
+            MB->>MC: debug:paused
+        else フロー完了
+            DS->>MB: execution:flowCompleted
+            DS->>DS: デバッグモード終了
+            MB->>MC: execution:flowCompleted
+        end
+    end

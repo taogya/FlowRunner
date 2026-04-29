@@ -1,0 +1,44 @@
+classDiagram
+    class IFlowService {
+        &lt;&lt;interface&gt;&gt;
+        +createFlow(name: string) Promise~FlowDefinition~
+        +getFlow(flowId: string) Promise~FlowDefinition~
+        +saveFlow(flow: FlowDefinition) Promise~void~
+        +deleteFlow(flowId: string) Promise~void~
+        +renameFlow(flowId: string, newName: string) Promise~void~
+        +listFlows() Promise~FlowSummary[]~
+        +existsFlow(flowId: string) Promise~boolean~
+        +onDidChangeFlows Event~void~
+    }
+
+    class FlowService {
+        -flowRepository: IFlowRepository
+        -_onDidChangeFlows: EventEmitter~void~
+        +createFlow(name: string) Promise~FlowDefinition~
+        +getFlow(flowId: string) Promise~FlowDefinition~
+        +saveFlow(flow: FlowDefinition) Promise~void~
+        +deleteFlow(flowId: string) Promise~void~
+        +renameFlow(flowId: string, newName: string) Promise~void~
+        +listFlows() Promise~FlowSummary[]~
+        +existsFlow(flowId: string) Promise~boolean~
+        +onDidChangeFlows Event~void~
+        -createTriggerNode() NodeInstance
+    }
+
+    class IFlowRepository {
+        &lt;&lt;interface&gt;&gt;
+        +save(flow: FlowDefinition) Promise~void~
+        +load(flowId: string) Promise~FlowDefinition~
+        +delete(flowId: string) Promise~void~
+        +list() Promise~FlowSummary[]~
+        +exists(flowId: string) Promise~boolean~
+    }
+
+    class IFlowTreeProvider {
+        &lt;&lt;interface&gt;&gt;
+        +refresh() void
+    }
+
+    FlowService ..|> IFlowService : implements
+    FlowService --> IFlowRepository : uses
+    IFlowTreeProvider ..> FlowService : subscribes<br>onDidChangeFlows

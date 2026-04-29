@@ -1,0 +1,78 @@
+{
+  "id": "feat-00015-medium",
+  "name": "FEAT-00015 実行前バリデーション 警告",
+  "description": "事前バリデーションで medium を発生させる確認用フロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide",
+      "type": "comment",
+      "label": "確認ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. Condition ノードの false ポートが未接続なので警告が出ます。\n2. 続行を選ぶと実行でき、キャンセルで中止されます。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 40,
+        "y": 170
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "condition",
+      "type": "condition",
+      "label": "Condition",
+      "enabled": true,
+      "position": {
+        "x": 320,
+        "y": 170
+      },
+      "settings": {
+        "expression": "true"
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "True Branch",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 120
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "condition",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "condition",
+      "sourcePortId": "true",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-05T13:29:52.124Z"
+}

@@ -1,0 +1,35 @@
+flowchart TB
+    WV["WebView<br>postMessage({ type, payload })"]
+    MB["MessageBroker<br>handleMessage()"]
+
+    WV --> MB
+
+    MB --> Parse["type からハンドラ検索<br>handlerMap.get(type)"]
+
+    Parse -->|"見つかった"| Exec["ハンドラ実行<br>try-catch"]
+    Parse -->|"見つからない"| Err1["error:general 返送"]
+
+    Exec -->|"成功 + 応答あり"| Resp["panel.webview.postMessage()<br>応答メッセージ送信"]
+    Exec -->|"成功 + 応答なし"| Done["完了<br>(イベントで非同期通知)"]
+    Exec -->|"例外発生"| Err2["error:general 返送<br>エラー詳細を payload に含む"]
+
+    subgraph Handlers["登録済みハンドラ"]
+        H1["flow:load → flowService.getFlow()"]
+        H2["flow:save → flowService.saveFlow()"]
+        H3["flow:execute → executionService.executeFlow()"]
+        H4["flow:stop → executionService.stopFlow()"]
+        H5["debug:start → debugService.startDebug()"]
+        H6["debug:step → debugService.step()"]
+        H7["debug:stop → debugService.stopDebug()"]
+        H8["node:getTypes → registry.getAll()"]
+    end
+
+    Parse -.-> Handlers
+
+    subgraph EventForward["イベントフォワーディング"]
+        EF1["executionService.onFlowEvent<br>→ execution:nodeStarted<br>→ execution:nodeCompleted<br>→ execution:nodeError<br>→ execution:flowCompleted"]
+        EF2["debugService.onDebugEvent<br>→ debug:paused"]
+    end
+
+    style Handlers fill:#e3f2fd
+    style EventForward fill:#fff3e0

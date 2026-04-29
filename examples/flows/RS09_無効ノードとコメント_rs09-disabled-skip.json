@@ -1,0 +1,131 @@
+{
+  "id": "rs09-disabled-skip",
+  "name": "RS09 無効ノードとコメント",
+  "description": "RSST: enabled=falseノードのスキップ動作と、コメントノード(ポートなし)の独立配置を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. enabled=falseのノードはスキップされること\n2. コメントノードはポートなし・フロー接続不可\n3. スキップ後も後続ノードに実行が継続すること"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd-disabled",
+      "type": "command",
+      "label": "無効コマンド(スキップ)",
+      "enabled": false,
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "settings": {
+        "command": "echo SHOULD_NOT_RUN"
+      }
+    },
+    {
+      "id": "log1",
+      "type": "log",
+      "label": "無効後ログ",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "settings": {
+        "message": "無効ノード後に到達: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "cmd-active",
+      "type": "command",
+      "label": "有効コマンド",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 350
+      },
+      "settings": {
+        "command": "echo ACTIVE"
+      }
+    },
+    {
+      "id": "log2",
+      "type": "log",
+      "label": "有効後ログ",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 350
+      },
+      "settings": {
+        "message": "有効ノード出力: {{input}}",
+        "level": "info"
+      }
+    },
+    {
+      "id": "comment-standalone",
+      "type": "comment",
+      "label": "コメント(ポートなし)",
+      "enabled": true,
+      "position": {
+        "x": 700,
+        "y": 100
+      },
+      "settings": {
+        "comment": "コメントノードはフローに接続できないメモ用ノードです。実行エンジンはskippedを返します。"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-disabled",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd-disabled",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log1",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e3",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd-active",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e4",
+      "sourceNodeId": "cmd-active",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log2",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-07T15:40:09.409Z"
+}

@@ -1,0 +1,77 @@
+{
+  "id": "rs11-mai",
+  "name": "RS11 フロー連携(メイン)",
+  "description": "RSST: SubFlowノードで別フローを呼び出す連携を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. SubFlowノードのflowId設定で別フローを呼び出せること\n2. サブフローの実行結果がout出力ポートに流れること\n3. flowIdにRS11_サブフロー呼出先のID(rs11-tgt)を設定すること"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "メイン開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 200
+      },
+      "settings": {}
+    },
+    {
+      "id": "subflow",
+      "type": "subFlow",
+      "label": "サブフロー呼出",
+      "enabled": true,
+      "position": {
+        "x": 250,
+        "y": 200
+      },
+      "settings": {
+        "flowId": "rs11-tgt"
+      }
+    },
+    {
+      "id": "log-result",
+      "type": "log",
+      "label": "呼出結果",
+      "enabled": true,
+      "position": {
+        "x": 500,
+        "y": 200
+      },
+      "settings": {
+        "message": "サブフロー結果: {{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "subflow",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "subflow",
+      "sourcePortId": "out",
+      "targetNodeId": "log-result",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-06T16:27:16.856Z"
+}

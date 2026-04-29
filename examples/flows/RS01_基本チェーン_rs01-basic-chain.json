@@ -1,0 +1,77 @@
+{
+  "id": "rs01-basic-chain",
+  "name": "RS01 基本チェーン",
+  "description": "RSST: Trigger→Command→Log の基本実行チェーン。コマンドのstdout→Logへの接続を検証",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "comment",
+      "type": "comment",
+      "label": "検証ポイント",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "settings": {
+        "comment": "1. Triggerがフロー起点として動作\n2. Commandがシェルコマンドを実行しstdoutに結果を出力\n3. Logがinポートから受け取ったデータをOutputChannelに表示\n4. フロー全体が success で完了"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "開始",
+      "enabled": true,
+      "position": {
+        "x": 0,
+        "y": 110
+      },
+      "settings": {}
+    },
+    {
+      "id": "cmd",
+      "type": "command",
+      "label": "echo Hello",
+      "enabled": true,
+      "position": {
+        "x": 260,
+        "y": 110
+      },
+      "settings": {
+        "command": "echo \"Hello, FlowRunner!\""
+      }
+    },
+    {
+      "id": "log1",
+      "type": "log",
+      "label": "結果ログ",
+      "enabled": true,
+      "position": {
+        "x": 520,
+        "y": 110
+      },
+      "settings": {
+        "message": "{{input}}",
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "cmd",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "cmd",
+      "sourcePortId": "stdout",
+      "targetNodeId": "log1",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-03-26T00:00:00.000Z",
+  "updatedAt": "2026-04-07T15:39:42.373Z"
+}

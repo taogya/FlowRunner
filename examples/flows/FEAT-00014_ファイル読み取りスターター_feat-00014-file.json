@@ -1,0 +1,92 @@
+{
+  "id": "feat-00014-file",
+  "name": "FEAT-00014 ファイル読み取りスターター",
+  "description": "ファイルを読み込んで Log で確認するスターターフロー。",
+  "version": "1.0.0",
+  "nodes": [
+    {
+      "id": "guide-path",
+      "type": "comment",
+      "label": "最初に編集",
+      "enabled": true,
+      "position": {
+        "x": 80,
+        "y": 20
+      },
+      "settings": {
+        "comment": "1. File ノードの path を読みたいファイルへ変更します。"
+      }
+    },
+    {
+      "id": "guide-output",
+      "type": "comment",
+      "label": "結果確認",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 20
+      },
+      "settings": {
+        "comment": "2. Log ノードで読み取った内容を確認します。"
+      }
+    },
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Trigger",
+      "enabled": true,
+      "position": {
+        "x": 100,
+        "y": 140
+      },
+      "settings": {
+        "triggerType": "manual"
+      }
+    },
+    {
+      "id": "file",
+      "type": "file",
+      "label": "Read File",
+      "enabled": true,
+      "position": {
+        "x": 360,
+        "y": 140
+      },
+      "settings": {
+        "operation": "read",
+        "path": "./README.md"
+      }
+    },
+    {
+      "id": "log",
+      "type": "log",
+      "label": "File Content",
+      "enabled": true,
+      "position": {
+        "x": 620,
+        "y": 140
+      },
+      "settings": {
+        "level": "info"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "sourceNodeId": "trigger",
+      "sourcePortId": "out",
+      "targetNodeId": "file",
+      "targetPortId": "in"
+    },
+    {
+      "id": "e2",
+      "sourceNodeId": "file",
+      "sourcePortId": "out",
+      "targetNodeId": "log",
+      "targetPortId": "in"
+    }
+  ],
+  "createdAt": "2026-04-04T00:00:00.000Z",
+  "updatedAt": "2026-04-09T16:12:25.678Z"
+}
